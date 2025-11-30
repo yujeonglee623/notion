@@ -3,196 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YuJeong's Pink Calendar V3</title>
+    <title>YuJeong's Safe Calendar</title>
     <style>
+        /* 기본 설정 */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: transparent;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             margin: 0;
-            padding: 10px; /* 여백 줄임 */
-            color: #37352f;
+            padding: 20px;
+            background-color: transparent; /* 배경 투명 */
+            color: #333; /* 글자색 진하게 */
         }
 
+        /* 캘린더가 가운데 오도록 */
         .container {
-            width: 100%;
-            max-width: 350px; /* 조금 더 컴팩트하게 */
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.5); /* 아주 연한 흰색 배경 깔아서 글자 잘 보이게 */
+            padding: 15px;
+            border-radius: 15px;
         }
 
         .header {
-            font-weight: 700;
-            font-size: 1.1rem;
-            margin-bottom: 10px;
-            color: #BFEAFC;
-            text-align: left;
-            padding-left: 5px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
         }
 
-        /* 캘린더 그리드 */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
-            margin-bottom: 15px;
+            gap: 5px;
+            margin-bottom: 20px;
         }
 
         .day-name {
             text-align: center;
-            font-size: 0.75rem;
-            color: #999;
-            padding-bottom: 5px;
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
         }
 
         .day {
             aspect-ratio: 1/1;
-            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 0.85rem;
             cursor: pointer;
+            border-radius: 10px;
+            font-size: 0.9rem;
             transition: 0.2s;
-            position: relative;
+            background-color: rgba(255,255,255,0.8); /* 날짜 배경 */
         }
 
         .day:hover {
-            background-color: rgba(0, 0, 0, 0.05);
+            background-color: #eee;
         }
 
-        /* 선택된 날짜 (입력 중) - 테두리로 표시 */
+        /* 오늘 날짜 */
+        .day.today {
+            border: 2px solid #FFD9E8;
+            color: #E16259;
+            font-weight: bold;
+        }
+
+        /* 선택된 날짜 */
         .day.selected {
-            border: 2px solid #37352f;
+            background-color: #333;
+            color: white;
         }
 
-        /* 오늘 날짜 (작은 점) */
-        .day.today::after {
-            content: '';
-            position: absolute;
-            bottom: 4px;
-            width: 4px;
-            height: 4px;
-            background-color: #E16259;
-            border-radius: 50%;
-        }
-
-        /* ✨ 데이터 있으면 핑크 배경 + 흰색 글씨 ✨ */
+        /* 데이터 있는 날 (핑크) */
         .day.has-event {
             background-color: #FFD9E8 !important;
-            color: #d63384 !important; /* 흰색보다 진한 핑크가 가독성 더 좋음 */
-            font-weight: 800;
+            color: #d63384 !important;
+            font-weight: bold;
         }
 
-        /* 입력창 영역 */
-        .input-area {
+        /* 입력창 */
+        .input-group {
             display: flex;
             gap: 5px;
-            margin-bottom: 15px;
-            padding: 5px;
-            background: rgba(255,255,255,0.8);
-            border-radius: 8px;
+            margin-bottom: 10px;
         }
 
-        input[type="text"] {
+        input {
             flex: 1;
             padding: 8px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.9rem;
+            border-radius: 5px;
             outline: none;
-        }
-        
-        input[type="text"]:focus {
-            border-color: #FFD9E8;
         }
 
         button {
-            padding: 8px 12px;
-            background-color: #37352f;
+            padding: 8px 15px;
+            background: #333;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 5px;
             cursor: pointer;
-            font-size: 0.8rem;
         }
 
-        button:hover {
-            opacity: 0.8;
-        }
-
-        /* 투두 리스트 영역 */
-        .todo-section {
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-            width: 100%;
-        }
-
+        /* 리스트 */
         .todo-item {
             display: flex;
             align-items: center;
-            font-size: 0.85rem;
-            margin-bottom: 6px;
-            padding: 6px 10px;
+            padding: 8px;
             background: white;
-            border-radius: 6px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            margin-bottom: 5px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
-        .todo-date {
-            font-size: 0.7rem;
-            background-color: #FFD9E8;
+        .date-badge {
+            background: #FFD9E8;
             color: #d63384;
             padding: 2px 6px;
             border-radius: 4px;
+            font-size: 0.7rem;
             margin-right: 8px;
             font-weight: bold;
         }
-        
-        .delete-btn {
-            margin-left: auto;
-            color: #aaa;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-        .delete-btn:hover { color: red; }
 
+        .del-btn {
+            margin-left: auto;
+            cursor: pointer;
+            color: #999;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="header" id="month-year"></div>
+        <div id="loading">캘린더 로딩중... (잠시만 기다려주세요)</div>
 
-        <div class="calendar-grid" id="calendar">
-            <div class="day-name">일</div>
-            <div class="day-name">월</div>
-            <div class="day-name">화</div>
-            <div class="day-name">수</div>
-            <div class="day-name">목</div>
-            <div class="day-name">금</div>
-            <div class="day-name">토</div>
-        </div>
+        <div id="app-content" style="display:none;">
+            <div class="header" id="month-year"></div>
 
-        <div class="input-area">
-            <input type="text" id="todo-input" placeholder="날짜를 먼저 클릭하세요!" disabled>
-            <button id="add-btn">저장</button>
-        </div>
-
-        <div class="todo-section" id="todo-list">
+            <div class="calendar-grid" id="calendar">
+                <div class="day-name">일</div>
+                <div class="day-name">월</div>
+                <div class="day-name">화</div>
+                <div class="day-name">수</div>
+                <div class="day-name">목</div>
+                <div class="day-name">금</div>
+                <div class="day-name">토</div>
             </div>
+
+            <div class="input-group">
+                <input type="text" id="todo-input" placeholder="날짜를 클릭하고 할 일을 적으세요" disabled>
+                <button id="save-btn">저장</button>
+            </div>
+
+            <div id="todo-list"></div>
+        </div>
     </div>
 
     <script>
-        const calendarEl = document.getElementById('calendar');
-        const monthYearEl = document.getElementById('month-year');
-        const todoListEl = document.getElementById('todo-list');
-        const inputEl = document.getElementById('todo-input');
-        const addBtn = document.getElementById('add-btn');
-        
-        const date = new Date();
-        const currentYear = date.getFullYear();
-        const currentMonth = date.getMonth(); 
+        // 오류가 나면 경고창을 띄우는 안전장치
+        window.onerror = function(msg, url, line) {
+            alert("오류 발생! 코드를 확인해주세요.\n" + msg);
+            return false;
+        };
 
-        const STORAGE_KEY = 'yujeong_calendar_v3';
-        let events = JSON.parse(localStorage.getItem(STORAGE_KEY))
+        try {
+            // 여기에 핵심 기능 시작
+            const calendarEl = document.getElementById('calendar');
+            const monthYearEl = document.getElementById('month-year');
+            const inputEl = document.getElementById('todo-input');
+            const saveBtn = document.getElementById('save-btn');
+            const todoListEl = document.getElementById('todo-list');
+            const appContent = document.getElementById('app-content');
+            const loadingEl = document.getElementById('loading');
+
+            const date = new Date();
+            const currentYear = date.getFullYear();
+            const currentMonth = date.getMonth();
+
+            const STORAGE_KEY = 'yujeong_cal_v4'; // 키값 변경 (충돌 방지)
+            let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+            let selectedDateKey = null;
+
+            function render() {
+                // 헤더 설정
+                monthYearEl.innerText = `${currentYear}년 ${currentMonth + 1}월`;
+
+                // 기존 날짜(div) 제거 - 요일 헤더(7개)는 남김
+                while (calendarEl.children.length > 7) {
+                    calendarEl.removeChild(calendarEl.lastChild);
+                }
+
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+                // 빈 칸 채우기
+                for(let i=0; i<firstDay; i++) {
+                    calendarEl.appendChild(document.createElement('div'));
+                }
+
+                // 날짜 채우기
+                for(let i=1; i<=lastDate; i++) {
+                    const day = document.createElement('div');
+                    day.className = 'day';
+                    day.innerText = i;
+                    
+                    const key = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+
+                    // 오늘
+                    const today = new Date();
+                    if(i === today.getDate() && currentMonth === today.getMonth()) day.classList.add('today');
+
+                    // 데이터 있음
+                    if(events[key]) day.classList.add('has-event');
+
+                    // 선택됨
+                    if(key === selectedDateKey) day.classList.add('selected');
+
+                    // 클릭 이벤트
+                    day.onclick = () => {
+                        selectedDateKey = key;
+                        inputEl.disabled = false;
+                        inputEl.placeholder = `${i}일 일정 입력...`;
+                        inputEl.value = events[key] || '';
+                        inputEl.focus();
+                        render(); // 다시 그려서 선택 표시 갱신
+                    };
+
+                    calendarEl.appendChild(day);
+                }
+
+                renderList();
+            }
+
+            function renderList() {
+                todoListEl.innerHTML = '';
+                Object.keys(events).sort().forEach(key => {
+                    const div = document.createElement('div');
+                    div.className = 'todo-item';
+                    const d = new Date(key);
+                    div.innerHTML = `
+                        <span class="date-badge">${d.getMonth()+1}/${d.getDate()}</span>
+                        <span style="flex:1">${events[key]}</span>
+                        <span class="del-btn" onclick="remove('${key}')">✕</span>
+                    `;
+                    todoListEl.appendChild(div);
+                });
+            }
+
+            function save() {
+                if(!selectedDateKey) return alert('날짜를 먼저 선택해주세요!');
+                if(inputEl.value.trim() === '') {
+                    delete events[selectedDateKey];
+                } else {
+                    events[selectedDateKey] = inputEl.value;
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+                inputEl.value = '';
+                render();
+            }
+
+            // 전역 함수로 등록 (HTML onclick에서 쓰려고)
+            window.remove = function(key) {
+                if(confirm('삭제할까요?')) {
+                    delete events[key];
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+                    render();
+                }
+            };
+
+            saveBtn.onclick = save;
+            inputEl.onkeypress = (e) => { if(e.key === 'Enter') save(); };
+
+            // 초기 실행
+            render();
+            
+            // 로딩 끝나면 화면 보여주기
+            loadingEl.style.display = 'none';
+            appContent.style.display = 'block';
+
+        } catch (e) {
+            alert("자바스크립트 오류: " + e.message);
+        }
+    </script>
+</body>
+</html>
