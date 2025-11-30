@@ -49,6 +49,24 @@
         .btn:hover { color: #E16259; }
         .btn-big { font-size: 2rem; color: #E16259; }
         .btn-big:hover { transform: scale(1.1); }
+        /* --- 여기부터 추가 --- */
+        
+        /* 컨트롤 버튼 배치 예쁘게 */
+        .controls { 
+            display: flex; 
+            justify-content: space-between; /* 양끝 정렬 */
+            align-items: center; 
+            margin-top: 15px; 
+            padding: 0 10px; 
+        }
+        
+        /* 셔플 버튼 켜졌을 때 핑크색 */
+        .btn.active { color: #E16259; }
+        
+        /* 가운데 메인 버튼들 모으기 */
+        .main-controls { display: flex; align-items: center; gap: 20px; }
+        
+        /* ------------------- */
     </style>
 </head>
 <body>
@@ -63,9 +81,15 @@
             <div class="progress" id="progress"></div>
         </div>
         <div class="controls">
-            <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
-            <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
-            <button class="btn" id="next"><i class="fas fa-forward"></i></button>
+            <button class="btn" id="shuffle" title="Random Play"><i class="fas fa-random"></i></button>
+            
+            <div class="main-controls">
+                <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
+                <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
+                <button class="btn" id="next"><i class="fas fa-forward"></i></button>
+            </div>
+            
+            <button class="btn" style="opacity: 0; cursor: default;"><i class="fas fa-redo"></i></button>
         </div>
     </div>
 
@@ -111,11 +135,16 @@
             }
         ];
 
+        // 👇 const songs = [...] 바로 밑에 이걸 붙여넣으면 돼!
+
         let songIndex = 0;
+        let isShuffle = false; // 셔플 상태 (처음엔 꺼짐)
+
         const audio = document.getElementById('audio');
         const playBtn = document.getElementById('play');
         const prevBtn = document.getElementById('prev');
         const nextBtn = document.getElementById('next');
+        const shuffleBtn = document.getElementById('shuffle'); // 셔플 버튼
         const title = document.getElementById('title');
         const artist = document.getElementById('artist');
         const cover = document.getElementById('cover');
@@ -130,6 +159,7 @@
             cover.src = song.cover;
         }
 
+        // 처음 로딩
         loadSong(songs[songIndex]);
 
         function playSong() {
@@ -146,31 +176,61 @@
             audio.pause();
         }
 
+        // ⭐ 셔플 버튼 클릭 시 동작
+        shuffleBtn.addEventListener('click', () => {
+            isShuffle = !isShuffle;
+            if(isShuffle) {
+                shuffleBtn.classList.add('active'); // 핑크색 켜기
+            } else {
+                shuffleBtn.classList.remove('active'); // 끄기
+            }
+        });
+
         playBtn.addEventListener('click', () => {
             const isPlaying = playBtn.querySelector('i').classList.contains('fa-pause');
             if (isPlaying) pauseSong(); else playSong();
         });
 
+        // 이전 곡
         prevBtn.addEventListener('click', () => {
-            songIndex--;
-            if (songIndex < 0) songIndex = songs.length - 1;
+            if (isShuffle) {
+                // 셔플일 땐 이전 곡도 랜덤으로 (또는 그냥 이전 인덱스)
+                songIndex = Math.floor(Math.random() * songs.length);
+            } else {
+                songIndex--;
+                if (songIndex < 0) songIndex = songs.length - 1;
+            }
             loadSong(songs[songIndex]);
             playSong();
         });
 
-        nextBtn.addEventListener('click', () => {
-            songIndex++;
-            if (songIndex > songs.length - 1) songIndex = 0;
+        // ⭐ 다음 곡 (랜덤 로직 핵심!)
+        function nextSong() {
+            if (isShuffle) {
+                let newIndex;
+                // 현재랑 다른 곡이 나올 때까지 랜덤 돌리기 (노래가 1곡뿐이면 제외)
+                do {
+                    newIndex = Math.floor(Math.random() * songs.length);
+                } while (newIndex === songIndex && songs.length > 1);
+                songIndex = newIndex;
+            } else {
+                songIndex++;
+                if (songIndex > songs.length - 1) songIndex = 0;
+            }
             loadSong(songs[songIndex]);
             playSong();
-        });
+        }
 
+        nextBtn.addEventListener('click', nextSong);
+
+        // 진행 바 업데이트
         audio.addEventListener('timeupdate', (e) => {
             const { duration, currentTime } = e.srcElement;
             const progressPercent = (currentTime / duration) * 100;
             progress.style.width = `${progressPercent}%`;
         });
 
+        // 진행 바 클릭 이동
         progressContainer.addEventListener('click', (e) => {
             const width = progressContainer.clientWidth;
             const clickX = e.offsetX;
@@ -178,7 +238,8 @@
             audio.currentTime = (clickX / width) * duration;
         });
 
-        audio.addEventListener('ended', () => nextBtn.click());
+        // ⭐ 노래 끝나면 다음 곡 (셔플 상태 반영)
+        audio.addEventListener('ended', nextSong);
     </script>
 </body>
 </html>
