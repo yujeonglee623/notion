@@ -12,7 +12,7 @@ try:
     NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
     DATABASE_ID = st.secrets["DATABASE_ID"]
 except:
-    st.error("비밀키가 설정되지 않았어! 배포할 때 Secrets에 입력해야 해.")
+    st.error("Secrets 설정을 확인해주세요!")
     st.stop()
 
 headers = {
@@ -22,10 +22,8 @@ headers = {
 }
 
 # ==========================================
-# 🧠 파이썬 백엔드 (Only Reading!)
+# 🧠 파이썬 백엔드 (읽기 전용)
 # ==========================================
-# 쓰기/삭제 함수는 다 지웠어! 오직 읽기만!
-
 def get_data():
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
     payload = {"sorts": [{"property": "Date", "direction": "ascending"}]}
@@ -41,15 +39,12 @@ def get_data():
     for result in results:
         try:
             props = result["properties"]
-            # Page ID는 이제 필요 없지만, 나중을 위해 남겨둠
             page_id = result["id"]
             
             title_list = props.get("To-Do", {}).get("title", [])
             title = title_list[0]["plain_text"] if title_list else "제목 없음"
-            
             date_info = props.get("Date", {}).get("date", {})
             date = date_info.get("start") if date_info else None
-            
             completed = props.get("Complete", {}).get("checkbox", False)
             
             if not date: continue
@@ -66,57 +61,73 @@ def get_data():
     return json.dumps(calendar_events, ensure_ascii=False), pd.DataFrame(df_list)
 
 # ==========================================
-# 💅 UI 디자인 (깔끔 그 자체 ✨)
+# 💅 UI 디자인 (컴팩트 모드)
 # ==========================================
-st.set_page_config(page_title="유정이의 핑크 캘린더", layout="wide")
+st.set_page_config(page_title="유정이의 캘린더", layout="centered") # layout을 centered로 변경해서 더 오밀조밀하게
 
-# 여백 최소화 스타일
+# 여백 완전 제거 스타일
 st.markdown("""
     <style>
-        .block-container { padding-top: 0rem; padding-bottom: 0rem; } 
+        .block-container { padding-top: 0rem; padding-bottom: 0rem; padding-left: 1rem; padding-right: 1rem; } 
         header, footer { visibility: hidden; }
+        .stApp { margin-top: -30px; } /* 강제로 위로 끌어올리기 */
         
-        /* 카드 스타일 */
+        /* 리스트 카드 스타일 (작게) */
         .task-card {
             background-color: white;
-            padding: 10px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 6px;
             border: 1px solid #eee;
-            margin-bottom: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
     </style>
 """, unsafe_allow_html=True)
 
-# 데이터 가져오기
 events_json, df = get_data()
 
-# 1. 캘린더 (HTML)
+# 1. 캘린더 (HTML - Mini Ver.)
 html_code = f"""
 <!DOCTYPE html>
 <html>
 <head>
     <style>
         ::-webkit-scrollbar {{ display: none; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 5px; display: flex; justify-content: center; }}
-        .container {{ width: 100%; max-width: 900px; padding-bottom: 10px; }}
-        .header {{ font-size: 1.4rem; font-weight: 800; margin: 15px 0; color: #333; text-align: center; }}
-        .calendar-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }}
-        .day-name {{ text-align: center; color: #999; font-size: 0.8rem; margin-bottom: 5px; font-weight: 600; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; }}
+        .container {{ width: 100%; max-width: 600px; padding-bottom: 5px; }} /* 너비 제한 */
+        
+        /* 헤더 크기 축소 */
+        .header {{ font-size: 1.1rem; font-weight: 800; margin: 10px 0; color: #333; text-align: center; }}
+        
+        .calendar-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }}
+        .day-name {{ text-align: center; color: #999; font-size: 0.7rem; margin-bottom: 3px; font-weight: 600; }}
         
         .day {{ 
-            aspect-ratio: 1/0.8; border-radius: 12px; background: #fff; border: 1px solid #eee;
-            padding: 6px; font-size: 1rem; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; position: relative; cursor: pointer; color: #333;
+            aspect-ratio: 1/0.8; 
+            border-radius: 8px; /* 둥글기 축소 */
+            background: #fff; 
+            border: 1px solid #eee;
+            padding: 2px; /* 패딩 축소 */
+            font-size: 0.8rem; /* 폰트 축소 */
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+            cursor: pointer; 
+            color: #333;
         }}
-        .day:hover {{ border-color: #FFD9E8; transform: translateY(-2px); }}
-        .day.today {{ border: 2px solid #FFD9E8; color: #E16259; font-weight: bold; }}
         
+        .day:hover {{ border-color: #FFD9E8; transform: translateY(-1px); }}
+        .day.today {{ border: 1.5px solid #FFD9E8; color: #E16259; font-weight: bold; }}
         .day.has-event {{ background-color: #FFD9E8 !important; color: white !important; font-weight: bold; border: none; }}
         
-        .day-num {{ font-size: 1.1rem; margin-bottom: 4px; z-index: 10; }}
-        .dot-container {{ display: flex; gap: 4px; margin-top: 2px; }}
-        .dot {{ width: 5px; height: 5px; background-color: #E16259; border-radius: 50%; }}
+        .day-num {{ font-size: 0.9rem; margin-bottom: 2px; z-index: 10; }}
+        
+        /* 점 크기 축소 */
+        .dot-container {{ display: flex; gap: 3px; margin-top: 2px; }}
+        .dot {{ width: 4px; height: 4px; background-color: #E16259; border-radius: 50%; }}
         .day.has-event .dot {{ background-color: white; }}
     </style>
 </head>
@@ -145,12 +156,10 @@ html_code = f"""
                 const day = document.createElement('div');
                 day.className = 'day';
                 const dateKey = `${{currentYear}}-${{String(currentMonth+1).padStart(2,'0')}}-${{String(i).padStart(2,'0')}}`;
-                
                 const numDiv = document.createElement('div');
                 numDiv.className = 'day-num';
                 numDiv.innerText = i;
                 day.appendChild(numDiv);
-                
                 const today = new Date();
                 if(i === today.getDate() && currentMonth === today.getMonth()) day.classList.add('today');
                 if(events[dateKey]) {{
@@ -175,34 +184,28 @@ html_code = f"""
 </body>
 </html>
 """
-components.html(html_code, height=950, scrolling=True)
+# 높이를 550으로 대폭 축소! (컴팩트)
+components.html(html_code, height=550, scrolling=False)
 
-# 2. 상세 조회 (삭제 버튼 없이 깔끔하게 보여주기만 함)
-st.markdown("---")
-c1, c2 = st.columns([1, 2])
+# 2. 상세 조회 (작게)
+c1, c2 = st.columns([1, 1.5])
 
 with c1:
-    st.markdown("### 🔍 날짜 선택")
-    st.caption("노션 DB에서 일정을 관리하세요.")
+    st.markdown("##### 📅 날짜 선택")
     selected_date = st.date_input("확인할 날짜", datetime.now(), label_visibility="collapsed")
 
 with c2:
-    st.markdown(f"### 📋 {selected_date.strftime('%m월 %d일')}의 일정")
+    st.markdown(f"##### 📋 {selected_date.strftime('%m/%d')} 일정")
     if not df.empty:
         filtered_df = df[df["날짜"] == str(selected_date)]
         if not filtered_df.empty:
             for index, row in filtered_df.iterrows():
-                # 삭제 버튼 없이 그냥 텍스트만 깔끔하게 보여줌
                 check = "✅" if row['완료'] else "▫️"
                 st.markdown(
-                    f"""
-                    <div class="task-card">
-                        <b>{check} {row['할일']}</b>
-                    </div>
-                    """, 
+                    f"""<div class="task-card"><b>{check} {row['할일']}</b></div>""", 
                     unsafe_allow_html=True
                 )
         else:
-            st.info("이 날은 일정이 없어요!")
+            st.caption("일정 없음")
     else:
-        st.warning("등록된 전체 일정이 없습니다.")
+        st.caption("데이터 없음")
