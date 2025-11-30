@@ -53,13 +53,23 @@ def get_data():
     return json.dumps(calendar_events, ensure_ascii=False), pd.DataFrame(df_list)
 
 # ==========================================
-# 💅 UI 디자인 (초미니 버전)
+# 💅 UI 디자인 (브랜드 로고 삭제 버전)
 # ==========================================
 st.set_page_config(page_title="Mini Cal", layout="centered")
 
-# Streamlit 여백 강제 삭제 (상하좌우 꽉 채우기)
+# 👇 여기가 핵심! Streamlit 브랜드 숨기기 CSS
 st.markdown("""
     <style>
+        /* 1. 햄버거 메뉴 숨기기 */
+        #MainMenu {visibility: hidden;}
+        
+        /* 2. 하단 푸터(Made with Streamlit) 숨기기 */
+        footer {visibility: hidden;}
+        
+        /* 3. 상단 헤더 숨기기 */
+        header {visibility: hidden;}
+        
+        /* 여백 제거 (이전 설정 유지) */
         .block-container {
             padding-top: 0rem !important;
             padding-bottom: 0rem !important;
@@ -67,12 +77,17 @@ st.markdown("""
             padding-right: 0.5rem !important;
             max-width: 100% !important;
         }
-        header, footer { visibility: hidden; }
         
-        /* 아래쪽 리스트 폰트 줄이기 */
+        /* 폰트 사이즈 조정 */
         .stMarkdown p { font-size: 0.8rem !important; }
-        .stDateInput label { display: none; } /* 날짜 라벨 숨기기 */
+        .stDateInput label { display: none; }
         div[data-testid="stDateInput"] { transform: scale(0.9); transform-origin: left top; }
+        
+        /* 모바일/임베드 환경에서 여백 제거 */
+        .appview-container .main .block-container {
+            padding-top: 0rem;
+            padding-bottom: 0rem;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -92,19 +107,19 @@ html_code = f"""
         }}
         .container {{ 
             width: 100%; 
-            max-width: 280px; /* ⭐ 여기가 핵심! 최대폭 280px */
+            max-width: 280px;
             padding-bottom: 0px; 
         }}
         
         .header {{ 
-            font-size: 0.9rem; /* 헤더 폰트 작게 */
+            font-size: 0.9rem;
             font-weight: 800; 
-            margin: 5px 0 10px 0; /* 여백 축소 */
+            margin: 5px 0 10px 0;
             color: #333; 
             text-align: center; 
         }}
         
-        .calendar-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }} /* 간격 2px */
+        .calendar-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }}
         .day-name {{ text-align: center; color: #999; font-size: 0.6rem; margin-bottom: 2px; font-weight: 600; }}
         
         .day {{ 
@@ -121,10 +136,10 @@ html_code = f"""
         .day.today {{ border: 1px solid #E16259; color: #E16259; font-weight: bold; }}
         .day.has-event {{ background-color: #FFD9E8 !important; color: white !important; font-weight: bold; border: none; }}
         
-        .day-num {{ font-size: 0.75rem; margin-bottom: 1px; z-index: 10; }} /* 숫자 크기 12px 정도 */
+        .day-num {{ font-size: 0.75rem; margin-bottom: 1px; z-index: 10; }}
         
         .dot-container {{ display: flex; gap: 2px; margin-top: 1px; }}
-        .dot {{ width: 3px; height: 3px; background-color: #E16259; border-radius: 50%; }} /* 점 크기 3px */
+        .dot {{ width: 3px; height: 3px; background-color: #E16259; border-radius: 50%; }}
         .day.has-event .dot {{ background-color: white; }}
     </style>
 </head>
@@ -181,7 +196,6 @@ html_code = f"""
 </body>
 </html>
 """
-# 높이를 320으로 확 줄임 (진짜 작음!)
 components.html(html_code, height=320, scrolling=False)
 
 # 2. 리스트 (미니)
@@ -194,7 +208,6 @@ with c2:
         if not filtered_df.empty:
             for index, row in filtered_df.iterrows():
                 check = "✅" if row['완료'] else "▫️"
-                # 아주 작은 폰트로 리스트 표시
                 st.markdown(f"<div style='font-size:0.8rem; margin-bottom:2px;'>{check} {row['할일']}</div>", unsafe_allow_html=True)
         else:
             st.caption("일정 없음")
