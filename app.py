@@ -60,34 +60,27 @@ st.set_page_config(page_title="Mini Cal", layout="centered")
 # 👇 여기가 핵심! 더 강력해진 CSS
 st.markdown("""
     <style>
-        /* 1. 햄버거 메뉴, 헤더, 푸터 싹 다 없애기 (강제성 부여 !important) */
-        #MainMenu { visibility: hidden; display: none !important; }
-        header { visibility: hidden; display: none !important; }
-        footer { visibility: hidden; display: none !important; }
-        
-        /* 2. 최신 버전 Streamlit 대응 (클래스명이 다를 수 있어서 추가) */
-        .stApp > header { display: none !important; }
-        .stApp > footer { display: none !important; }
-        div[data-testid="stHeader"] { display: none !important; }
-        div[data-testid="stFooter"] { display: none !important; }
-        div[data-testid="stToolbar"] { display: none !important; }
+        /* 1. 기본 헤더/푸터 숨기기 */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
 
-        /* 3. 여백 제거 (공간 확보) */
+        /* 2. 최신 버전 강력 대응 (data-testid 타겟팅) */
+        div[data-testid="stHeader"] {display: none !important;}
+        div[data-testid="stFooter"] {display: none !important;}
+        div[data-testid="stDecoration"] {display: none !important;}
+        div[data-testid="stStatusWidget"] {display: none !important;}
+        
+        /* 3. 모바일/임베드 뷰어 바 숨기기 */
+        .viewerBadge_container__1QSob {display: none !important;}
+        
+        /* 4. 여백 제거 */
         .block-container {
             padding-top: 0rem !important;
             padding-bottom: 0rem !important;
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
-            max-width: 100% !important;
+            padding-left: 0rem !important;
+            padding-right: 0rem !important;
         }
-        
-        /* 4. 스크롤바 숨기기 (전체 화면) */
-        ::-webkit-scrollbar { display: none; }
-        
-        /* 폰트 사이즈 조정 */
-        .stMarkdown p { font-size: 0.8rem !important; margin-bottom: 0px !important; }
-        .stDateInput label { display: none; }
-        div[data-testid="stDateInput"] { transform: scale(0.9); transform-origin: left top; margin-top: -10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -200,3 +193,4 @@ with c2:
             st.caption("일정 없음")
     else:
         st.caption("No Data")
+
