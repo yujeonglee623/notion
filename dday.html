@@ -3,73 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My D-Day Widget</title>
+    <title>Yujeong D-Day</title>
     <style>
-        /* 여기서부터 디자인(CSS) 영역 */
         body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center;
             height: 100vh;
-            background-color: transparent; /* 배경 투명하게! 노션 색이랑 찰떡 */
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
+        /* 핑크 테두리 컨테이너 (다른 위젯이랑 통일!) */
         .container {
+            width: 200px; /* 작고 귀엽게 */
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
-            color: #37352f; /* 노션 기본 글자색 (다크모드 쓸 거면 #ffffff로 변경) */
+            border: 2px solid #FFD9E8; /* 핑크 테두리 */
+            box-shadow: 0 4px 10px rgba(225, 98, 89, 0.05);
         }
 
         .title {
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
             font-weight: 600;
-            opacity: 0.8;
+            color: #888;
         }
 
         .d-day {
-            font-size: 3.5rem;
+            font-size: 2.5rem;
             font-weight: 800;
-            color: #FFD9E8; /* 포인트 컬러! 유정이가 좋아하는 색으로 바꿔도 돼 */
-            margin: 0;
+            color: #E16259; /* 진한 핑크/레드 포인트 */
+            margin: 5px 0;
             line-height: 1;
         }
 
         .date-info {
-            font-size: 0.9rem;
-            margin-top: 10px;
-            color: #888;
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="title" id="d-day-title">SQLD 시험까지</div>
-        <h1 class="d-day" id="d-day-count">D-Day</h1>
+        <div class="title" id="d-day-title">SQLD 시험</div>
+        <div class="d-day" id="d-day-count">D-Day</div>
         <div class="date-info" id="target-date">2025.00.00</div>
     </div>
 
     <script>
-        /* 여기서부터 기능(JS) 영역 */
-        
-        // ❗ 목표 날짜와 제목 (여기를 수정하면 돼)
-        const targetTitle = "SQLD 시험 합격"; 
-        const targetDateStr = "2025-11-20"; // 목표 날짜 (YYYY-MM-DD)
+        // ❗ 유정아, 여기 날짜랑 제목만 수정하면 돼!
+        const targetTitle = "2027 CPA"; 
+        const targetDateStr = "2027-02-28"; // 목표 날짜 (YYYY-MM-DD 형식)
 
         function calculateDday() {
             const today = new Date();
             const dday = new Date(targetDateStr);
             
-            // ⭐ 핵심 수정: 시간 떼고 "날짜"만 남기기 (0시 0분 0초로 초기화)
+            // 시간 초기화 (날짜만 계산하기 위해)
             today.setHours(0, 0, 0, 0);
             dday.setHours(0, 0, 0, 0);
             
-            // 날짜 차이 계산 (밀리초 단위 -> 일 단위 변환)
+            // 날짜 차이 계산
             const gap = dday.getTime() - today.getTime();
-            const result = Math.floor(gap / (1000 * 60 * 60 * 24)); // 정수로 딱 떨어짐
+            const result = Math.ceil(gap / (1000 * 60 * 60 * 24)); 
 
             // 화면에 뿌려주기
             document.getElementById("d-day-title").innerText = targetTitle;
@@ -78,23 +78,18 @@
             const countElement = document.getElementById("d-day-count");
 
             if (result > 0) {
-                // 미래 (시험 전)
                 countElement.innerText = `D-${result}`;
                 countElement.style.color = "#E16259"; 
             } else if (result === 0) {
-                // 당일
                 countElement.innerText = "D-Day";
                 countElement.style.color = "#FF0000"; 
             } else {
-                // 과거 (시험 후) -> 절대값(abs)을 씌워서 D+1, D+2로 표시
                 countElement.innerText = `D+${Math.abs(result)}`;
-                countElement.style.color = "#333"; // 지난 날짜는 검은색 (원하면 변경 가능)
+                countElement.style.color = "#333"; 
             }
         }
 
-        // 실행!
         calculateDday();
     </script>
 </body>
-
 </html>
