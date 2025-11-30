@@ -15,7 +15,7 @@ headers = {
 }
 
 # ==========================================
-# 🎨 HTML 코드 (체크박스 기능 추가!)
+# 🎨 HTML 코드 (체크박스 기능 포함)
 # ==========================================
 HTML_CONTENT = """
 <!DOCTYPE html>
@@ -63,30 +63,19 @@ HTML_CONTENT = """
         .list-area { width: 100%; max-width: 280px; margin-top: 10px; padding: 0 5px; box-sizing: border-box; }
         .date-title { font-size: 0.8rem; font-weight: bold; color: #555; margin-bottom: 5px; }
         
-        /* 리스트 아이템 디자인 수정 */
         .task-item { 
             background: white; padding: 6px 10px; border-radius: 6px; margin-bottom: 4px;
             font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
             border: 1px solid #eee; color: #333; transition: 0.2s;
         }
         
-        /* 체크박스 스타일 */
         input[type="checkbox"] {
-            accent-color: #E16259; /* 유정이의 핑크/레드 포인트 컬러! */
+            accent-color: #E16259;
             width: 14px; height: 14px; cursor: pointer;
         }
         
-        /* 완료된 항목 스타일 (취소선 & 회색) */
-        .completed-task {
-            text-decoration: line-through;
-            color: #aaa;
-        }
-        
+        .completed-task { text-decoration: line-through; color: #aaa; }
         .empty-msg { text-align: center; color: #ccc; font-size: 0.7rem; margin-top: 10px; }
-        
-        /* 로딩 스피너 */
-        .loader { border: 2px solid #f3f3f3; border-top: 2px solid #FFD9E8; border-radius: 50%; width: 15px; height: 15px; animation: spin 1s linear infinite; display:none; margin-left: auto;}
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -121,7 +110,6 @@ HTML_CONTENT = """
                 eventsData = data.events || {};
                 fullList = data.list || [];
                 renderCalendar();
-                // 현재 선택된 날짜가 있으면 그 날짜 리스트 유지, 없으면 오늘 날짜
                 const currentSelected = document.querySelector('.date-title')?.getAttribute('data-date');
                 showList(currentSelected || new Date().toISOString().split('T')[0]); 
             } catch (err) {
@@ -129,24 +117,20 @@ HTML_CONTENT = """
             }
         }
 
-        // ⭐ 체크박스 클릭 시 실행되는 함수 (노션 업데이트)
         async function toggleTask(pageId, isChecked) {
-            // 1. 화면에서 먼저 반영 (빠른 반응)
             const textSpan = document.getElementById(`text-${pageId}`);
             if(isChecked) textSpan.classList.add('completed-task');
             else textSpan.classList.remove('completed-task');
 
-            // 2. 서버에 요청 보내기
             try {
                 await fetch('/api/update_task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ page_id: pageId, completed: isChecked })
                 });
-                // 3. 데이터 다시 불러와서 싱크 맞추기
                 fetchData();
             } catch (e) {
-                alert("업데이트 실패 ㅠㅠ");
+                alert("업데이트 실패");
             }
         }
 
@@ -160,11 +144,15 @@ HTML_CONTENT = """
             const viewMonth = viewDate.getMonth();
             const monthNameEng = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(viewDate);
             monthYearEl.innerText = `${monthNameEng} ${viewYear}`;
+            
             while (calendarEl.children.length > 7) { calendarEl.removeChild(calendarEl.lastChild); }
+            
             const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
             const emptyCells = (firstDayOfWeek + 6) % 7;
             const lastDate = new Date(viewYear, viewMonth + 1, 0).getDate();
+            
             for(let i=0; i<emptyCells; i++) calendarEl.innerHTML += `<div></div>`;
+            
             for(let i=1; i<=lastDate; i++) {
                 const dateKey = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 const hasEvent = eventsData[dateKey];
@@ -173,13 +161,16 @@ HTML_CONTENT = """
                     const count = Math.min(hasEvent.length, 3);
                     dotHtml = `<div class="dot-box">${'<div class="dot"></div>'.repeat(count)}</div>`;
                 }
+
                 const today = new Date();
                 const todayClass = (i === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()) ? 'today' : '';
                 const eventClass = hasEvent ? 'has-event' : '';
+                
                 const dayDiv = document.createElement('div');
                 dayDiv.className = `day ${todayClass} ${eventClass}`;
                 dayDiv.innerHTML = `<span class="day-num">${i}</span>${dotHtml}`;
                 dayDiv.onclick = () => showList(dateKey);
+                
                 calendarEl.appendChild(dayDiv);
             }
         }
@@ -224,7 +215,6 @@ def home():
     response.headers['Content-Security-Policy'] = "frame-ancestors *"
     return response
 
-# API: 데이터 가져오기
 @app.route('/api/get_tasks', methods=['GET'])
 def get_tasks():
     if not NOTION_TOKEN or not DATABASE_ID: return jsonify({"error": "Env Var Error"}), 500
@@ -233,43 +223,34 @@ def get_tasks():
         payload = {"sorts": [{"property": "Date", "direction": "ascending"}]}
         response = requests.post(url, headers=headers, json=payload)
         data = response.json()
+        
         events = {}
         list_data = []
         for result in data.get("results", []):
             try:
                 props = result["properties"]
                 page_id = result["id"]
-                title_list = props.get("To-Do", {}).get("title", [])
-                title = title_list[0]["plain_text"] if title_list else "제목 없음"
-                date_info = props.get("Date", {}).get("date", {})
-                date = date_info.get("start") if date_info else None
+                title = props.get("To-Do", {}).get("title", [])[0]["plain_text"] if props.get("To-Do", {}).get("title") else ""
+                date = props.get("Date", {}).get("date", {}).get("start") if props.get("Date", {}).get("date") else None
                 completed = props.get("Complete", {}).get("checkbox", False)
                 
                 if date:
-                    # 캘린더에는 완료되지 않은 것만 점 찍기 (선택사항)
                     if not completed:
                         if date not in events: events[date] = []
                         events[date].append(title)
-                    # 리스트에는 다 보여줌
                     list_data.append({"id": page_id, "date": date, "task": title, "completed": completed})
             except: continue
         return jsonify({"events": events, "list": list_data})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# API: 체크박스 업데이트 (새로 추가된 기능!)
 @app.route('/api/update_task', methods=['POST'])
 def update_task():
     try:
         data = request.json
         page_id = data.get("page_id")
-        completed = data.get("completed") # True or False
-        
+        completed = data.get("completed")
         url = f"https://api.notion.com/v1/pages/{page_id}"
-        payload = {
-            "properties": {
-                "Complete": { "checkbox": completed }
-            }
-        }
+        payload = { "properties": { "Complete": { "checkbox": completed } } }
         requests.patch(url, headers=headers, json=payload)
         return jsonify({"status": "success"})
     except Exception as e:
