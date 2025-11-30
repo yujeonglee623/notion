@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YuJeong's Pink Calendar</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: transparent; /* 투명 배경 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #37352f; /* 기본 글자색 (검정) */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .header {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #37352f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 캘린더 그리드 */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+
+        .day-name {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #999;
+            padding-bottom: 5px;
+        }
+
+        .day {
+            aspect-ratio: 1/1;
+            border-radius: 50%; /* 동그라미 모양 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .day:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        /* 오늘 날짜 표시 (테두리만) */
+        .day.today {
+            border: 2px solid #FFD9E8;
+            color: #E16259;
+            font-weight: bold;
+        }
+
+        /* ✨ 유정이가 원한 디자인: 데이터 있으면 핑크 배경 + 흰색 글씨 ✨ */
+        .day.has-event {
+            background-color: #FFD9E8 !important;
+            color: white !important;
+            font-weight: bold;
+            border: none;
+        }
+
+        /* 투두 리스트 영역 */
+        .todo-section {
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            width: 100%;
+        }
+
+        .todo-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .todo-date {
+            font-size: 0.7rem;
+            background-color: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+            color: #555;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <span id="month-year"></span>
+        </div>
+
+        <div class="calendar-grid" id="calendar">
+            <div class="day-name">일</div>
+            <div class="day-name">월</div>
+            <div class="day-name">화</div>
+            <div class="day-name">수</div>
+            <div class="day-name">목</div>
+            <div class="day-name">금</div>
+            <div class="day-name">토</div>
+        </div>
+
+        <div class="todo-section">
+            <div class="todo-title">TO-DO LIST</div>
+            <div id="todo-list">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const calendarEl = document.getElementById('calendar');
+        const monthYearEl = document.getElementById('month-year');
+        const todoListEl = document.getElementById('todo-list');
+        
+        const date = new Date();
+        const currentYear = date.getFullYear();
+        const currentMonth = date.getMonth(); 
+
+        const STORAGE_KEY = 'yujeong_calendar_v2';
+        let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+
+        function renderCalendar() {
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            monthYearEl.innerText = `${currentYear}.${String(currentMonth + 1).padStart(2, '0')}`;
+
+            // 기존 날짜 삭제 (요일 헤더 제외)
+            while (calendarEl.children.length > 7) {
+                calendarEl.removeChild(calendarEl.lastChild);
+            }
+
+            // 빈 칸
+            for (let i = 0; i < firstDay; i++) {
+                calendarEl.appendChild(document.createElement('div'));
+            }
+
+            // 날짜 생성
+            for (let i = 1; i <= lastDate; i++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day';
+                dayEl.innerText = i;
+                
+                const dateKey = `${currentYear}-${String(currentMonth+1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+
+                // 오늘 날짜
+                const today = new Date();
+                if (i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+                    dayEl.classList.add('today');
+                }
+
+                // 이벤트 확인
+                if (events[dateKey]) {
+                    dayEl.classList.add('has-event');
+                }
+
+                // 클릭 이벤트
+                dayEl.addEventListener('click', () => {
+                    const input = prompt(`${i}일의 To-Do를 입력해줘!`, events[dateKey] || '');
+                    if (input !== null) {
+                        if (input.trim() === '') {
+                            delete events[dateKey];
+                        } else {
+                            events[dateKey] = input;
+                        }
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+                        renderCalendar(); // 다시 그리기
+                        renderTodoList(); // 리스트도 업데이트
+                    }
+                });
+
+                calendarEl.appendChild(dayEl);
+            }
+        }
+
+        // 투두 리스트만 따로 그리는 함수
+        function renderTodoList() {
+            todoListEl.innerHTML = ''; // 초기화
+            
+            // 날짜 순서대로 정렬
+            const sortedKeys = Object.keys(events).sort();
+
+            if (sortedKeys.length === 0) {
+                todoListEl.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">등록된 일정이 없어! 날짜를 눌러봐.</div>';
+                return;
+            }
+
+            sortedKeys.forEach(key => {
+                const item = document.createElement('div');
+                item.className = 'todo-item';
+                // 날짜 포맷 예쁘게 (2025-11-30 -> 11/30)
+                const dateObj = new Date(key);
+                const dateStr = `${dateObj.getMonth()+1}/${dateObj.getDate()}`;
+                
+                item.innerHTML = `
+                    <span class="todo-date">${dateStr}</span>
+                    <span>${events[key]}</span>
+                `;
+                todoListEl.appendChild(item);
+            });
+        }
+
+        renderCalendar();
+        renderTodoList();
+    </script>
+</body>
+</html>
