@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, render_template, make_response
 import requests
 import os
 
-# ⭐ templates 폴더가 api 폴더의 상위(..)에 있다는 걸 알려주는 설정
+# 템플릿과 스태틱 폴더 위치 지정
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
@@ -14,27 +14,29 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# iframe 허용 헤더를 붙여주는 함수
-def allow_iframe(content):
-    response = make_response(content)
-    response.headers['X-Frame-Options'] = 'ALLOWALL'
-    response.headers['Content-Security-Policy'] = "frame-ancestors *"
+# ⭐⭐⭐ [핵심] 모든 응답에 강제로 '문 열어' 헤더를 붙이는 마법의 코드
+@app.after_request
+def add_header(response):
+    # 노션이 내 사이트를 액자(iframe)에 넣을 수 있게 허락함
+    response.headers['Content-Security-Policy'] = "frame-ancestors https://www.notion.so https://notion.so *;"
+    # 일부 브라우저 호환성을 위해 추가
+    response.headers['X-Frame-Options'] = 'ALLOWALL' 
     return response
 
 # 1. 캘린더 페이지 (기본 주소)
 @app.route('/')
 def calendar_page():
-    return allow_iframe(render_template('calendar.html'))
+    return render_template('calendar.html')
 
 # 2. 리스트 페이지
 @app.route('/list')
 def list_page():
-    return allow_iframe(render_template('list.html'))
+    return render_template('list.html')
 
 # 3. 음악 페이지
 @app.route('/music')
 def music_page():
-    return allow_iframe(render_template('music.html'))
+    return render_template('music.html')
 
 # --- API (데이터 통신) ---
 @app.route('/api/get_tasks', methods=['GET'])
