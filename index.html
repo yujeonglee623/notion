@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yujeong Mini Calendar</title>
+    <title>Yujeong's Pink Calendar</title>
     <style>
         /* 스크롤바 숨기기 & 기본 설정 */
         ::-webkit-scrollbar { display: none; }
@@ -11,33 +11,49 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             margin: 0; padding: 0; 
             display: flex; flex-direction: column; align-items: center; 
-            background: transparent; /* 배경 투명 */
+            background: transparent;
         }
         
-        /* 캘린더 전체 컨테이너 (폭 조절) */
         .container { 
             width: 100%; 
-            max-width: 280px; /* 노션 1/4 크기에 딱! */
+            max-width: 280px;
             background: white;
             border-radius: 12px;
             padding: 10px; 
             box-sizing: border-box;
         }
         
-        /* 헤더 (년/월) */
-        .header { 
-            font-size: 0.9rem; font-weight: 800; color: #333; 
-            text-align: center; margin-bottom: 8px; 
+        /* ⭐ 헤더 디자인 변경 (핑크 배경 + 흰색 글씨 + 화살표) */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #FFD9E8; /* 핑크 배경 */
+            color: white; /* 흰색 글씨 */
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
+        .header-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+        .nav-btn {
+            cursor: pointer;
+            padding: 0 5px;
+            font-weight: bold;
+            user-select: none;
+        }
+        .nav-btn:hover { color: #f0f0f0; }
         
-        /* 요일 및 날짜 그리드 */
+        /* 요일 그리드 (월요일 시작) */
         .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
         .day-name { 
             text-align: center; color: #aaa; font-size: 0.6rem; 
             font-weight: 600; margin-bottom: 4px; 
         }
         
-        /* 날짜 칸 디자인 */
+        /* 날짜 칸 */
         .day { 
             aspect-ratio: 1/0.9; 
             border-radius: 6px; 
@@ -46,21 +62,15 @@
             background: #fff; color: #333; position: relative;
         }
         .day:hover { border-color: #FFD9E8; background: #fff5f8; }
-        
-        /* 오늘 날짜 */
         .day.today { color: #E16259; font-weight: bold; border: 1px solid #E16259; }
-        
-        /* 데이터 있는 날 (핑크 배경) */
         .day.has-event { background-color: #FFD9E8 !important; color: white !important; font-weight: bold; border: none; }
-        
         .day-num { font-size: 0.75rem; z-index: 2; margin-bottom: 1px; }
         
-        /* 점 표시 */
         .dot-box { display: flex; gap: 2px; margin-top: 1px; }
         .dot { width: 3px; height: 3px; background-color: #E16259; border-radius: 50%; }
         .day.has-event .dot { background-color: white; }
 
-        /* 하단 리스트 영역 */
+        /* 하단 리스트 */
         .list-area { 
             width: 100%; max-width: 280px; 
             margin-top: 10px; padding: 0 5px; box-sizing: border-box; 
@@ -73,69 +83,82 @@
         }
         .check-icon { font-size: 0.7rem; }
         .empty-msg { text-align: center; color: #ccc; font-size: 0.7rem; margin-top: 10px; }
-        
-        /* 로딩 */
-        .loader { border: 2px solid #f3f3f3; border-top: 2px solid #FFD9E8; border-radius: 50%; width: 15px; height: 15px; animation: spin 1s linear infinite; margin: 10px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="header" id="month-year"></div>
-        <div class="grid" id="calendar"></div>
+        <div class="header-container">
+            <div class="nav-btn" onclick="changeMonth(-1)">&lt;</div>
+            <div class="header-title" id="month-year"></div>
+            <div class="nav-btn" onclick="changeMonth(1)">&gt;</div>
+        </div>
+        
+        <div class="grid" id="calendar">
+            <div class="day-name">M</div><div class="day-name">T</div><div class="day-name">W</div>
+            <div class="day-name">T</div><div class="day-name">F</div><div class="day-name">S</div>
+            <div class="day-name" style="color:#E16259;">S</div>
+        </div>
     </div>
 
-    <div class="list-area" id="list-area">
-        </div>
+    <div class="list-area" id="list-area"></div>
 
     <script>
         let eventsData = {}; 
-        let fullList = [];   
+        let fullList = [];
         
+        // ⭐ 현재 보고 있는 달력을 위한 변수 (초기값: 오늘)
+        let viewDate = new Date();
+
         const calendarEl = document.getElementById('calendar');
         const listEl = document.getElementById('list-area');
-        
-        const date = new Date();
-        const currentYear = date.getFullYear();
-        const currentMonth = date.getMonth();
+        const monthYearEl = document.getElementById('month-year');
 
-        // 데이터 가져오기
         async function fetchData() {
             try {
                 const res = await fetch('/api/get_tasks');
                 const data = await res.json();
-                
-                // 에러 체크
                 if (data.error) throw new Error(data.error);
-
                 eventsData = data.events || {};
                 fullList = data.list || [];
                 
                 renderCalendar();
-                // 처음엔 오늘 날짜 리스트 보여주기
                 showList(new Date().toISOString().split('T')[0]); 
             } catch (err) {
-                listEl.innerHTML = `<div class='empty-msg'>불러오기 실패<br>${err.message}</div>`;
+                listEl.innerHTML = `<div class='empty-msg'>로딩 실패<br>${err.message}</div>`;
             }
         }
 
-        // 달력 그리기
+        // ⭐ 달 변경 함수
+        function changeMonth(step) {
+            viewDate.setMonth(viewDate.getMonth() + step);
+            renderCalendar();
+        }
+
         function renderCalendar() {
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
+            const viewYear = viewDate.getFullYear();
+            const viewMonth = viewDate.getMonth();
+
+            // ⭐ 헤더 영어로 표시 (November 2025)
+            const monthNameEng = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(viewDate);
+            monthYearEl.innerText = `${monthNameEng} ${viewYear}`;
             
-            document.getElementById('month-year').innerText = `${currentYear}년 ${monthNames[currentMonth]}`;
-            calendarEl.innerHTML = `
-                <div class="day-name">일</div><div class="day-name">월</div><div class="day-name">화</div>
-                <div class="day-name">수</div><div class="day-name">목</div><div class="day-name">금</div><div class="day-name">토</div>
-            `;
+            // 기존 날짜 칸 비우기 (요일 헤더는 유지)
+            while (calendarEl.children.length > 7) { calendarEl.removeChild(calendarEl.lastChild); }
             
-            for(let i=0; i<firstDay; i++) calendarEl.innerHTML += `<div></div>`;
+            // ⭐ 월요일 시작 계산!
+            const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+            // 일요일(0)이면 6칸, 월요일(1)이면 0칸, 화요일(2)이면 1칸... 비워야 함
+            const emptyCells = (firstDayOfWeek + 6) % 7;
             
+            const lastDate = new Date(viewYear, viewMonth + 1, 0).getDate();
+            
+            // 빈 칸 채우기
+            for(let i=0; i<emptyCells; i++) calendarEl.innerHTML += `<div></div>`;
+            
+            // 날짜 채우기
             for(let i=1; i<=lastDate; i++) {
-                const dateKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const dateKey = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 const hasEvent = eventsData[dateKey];
                 
                 let dotHtml = '';
@@ -144,7 +167,8 @@
                     dotHtml = `<div class="dot-box">${'<div class="dot"></div>'.repeat(count)}</div>`;
                 }
 
-                const todayClass = (i === new Date().getDate() && currentMonth === new Date().getMonth()) ? 'today' : '';
+                const today = new Date();
+                const todayClass = (i === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear()) ? 'today' : '';
                 const eventClass = hasEvent ? 'has-event' : '';
                 
                 const dayDiv = document.createElement('div');
@@ -156,7 +180,6 @@
             }
         }
 
-        // 리스트 보여주기 (삭제 버튼 없음!)
         function showList(dateKey) {
             const filtered = fullList.filter(item => item.date === dateKey);
             const d = new Date(dateKey);
@@ -169,7 +192,6 @@
             } else {
                 filtered.forEach(item => {
                     const check = item.completed ? "✅" : "▫️";
-                    // 읽기 전용이라 클릭 이벤트 없음
                     html += `
                         <div class="task-item">
                             <span class="check-icon">${check}</span>
