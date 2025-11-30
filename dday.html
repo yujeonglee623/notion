@@ -55,17 +55,21 @@
     <script>
         /* 여기서부터 기능(JS) 영역 */
         
-        // ❗ 유정아, 여기 날짜랑 제목만 수정하면 돼!
-        const targetTitle = "2026 CPA"; 
-        const targetDateStr = "2027-02-28"; // 목표 날짜 (YYYY-MM-DD 형식)
+        // ❗ 목표 날짜와 제목 (여기를 수정하면 돼)
+        const targetTitle = "SQLD 시험 합격"; 
+        const targetDateStr = "2025-11-20"; // 목표 날짜 (YYYY-MM-DD)
 
         function calculateDday() {
             const today = new Date();
             const dday = new Date(targetDateStr);
             
+            // ⭐ 핵심 수정: 시간 떼고 "날짜"만 남기기 (0시 0분 0초로 초기화)
+            today.setHours(0, 0, 0, 0);
+            dday.setHours(0, 0, 0, 0);
+            
             // 날짜 차이 계산 (밀리초 단위 -> 일 단위 변환)
             const gap = dday.getTime() - today.getTime();
-            const result = Math.ceil(gap / (1000 * 60 * 60 * 24)); // 올림 처리
+            const result = Math.floor(gap / (1000 * 60 * 60 * 24)); // 정수로 딱 떨어짐
 
             // 화면에 뿌려주기
             document.getElementById("d-day-title").innerText = targetTitle;
@@ -74,12 +78,17 @@
             const countElement = document.getElementById("d-day-count");
 
             if (result > 0) {
+                // 미래 (시험 전)
                 countElement.innerText = `D-${result}`;
+                countElement.style.color = "#E16259"; 
             } else if (result === 0) {
+                // 당일
                 countElement.innerText = "D-Day";
-                countElement.style.color = "#FF8FB3"; // 당일에는 빨간색으로 강조!
+                countElement.style.color = "#FF0000"; 
             } else {
-                countElement.innerText = `D+${Math.abs(result)}`; // 날짜 지났으면 +로 표시
+                // 과거 (시험 후) -> 절대값(abs)을 씌워서 D+1, D+2로 표시
+                countElement.innerText = `D+${Math.abs(result)}`;
+                countElement.style.color = "#333"; // 지난 날짜는 검은색 (원하면 변경 가능)
             }
         }
 
@@ -87,4 +96,5 @@
         calculateDday();
     </script>
 </body>
+
 </html>
