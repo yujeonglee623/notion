@@ -53,23 +53,26 @@ def get_data():
     return json.dumps(calendar_events, ensure_ascii=False), pd.DataFrame(df_list)
 
 # ==========================================
-# 💅 UI 디자인 (브랜드 로고 삭제 버전)
+# 💅 UI 디자인 (강력한 CSS 적용)
 # ==========================================
 st.set_page_config(page_title="Mini Cal", layout="centered")
 
-# 👇 여기가 핵심! Streamlit 브랜드 숨기기 CSS
+# 👇 여기가 핵심! 더 강력해진 CSS
 st.markdown("""
     <style>
-        /* 1. 햄버거 메뉴 숨기기 */
-        #MainMenu {visibility: hidden;}
+        /* 1. 햄버거 메뉴, 헤더, 푸터 싹 다 없애기 (강제성 부여 !important) */
+        #MainMenu { visibility: hidden; display: none !important; }
+        header { visibility: hidden; display: none !important; }
+        footer { visibility: hidden; display: none !important; }
         
-        /* 2. 하단 푸터(Made with Streamlit) 숨기기 */
-        footer {visibility: hidden;}
-        
-        /* 3. 상단 헤더 숨기기 */
-        header {visibility: hidden;}
-        
-        /* 여백 제거 (이전 설정 유지) */
+        /* 2. 최신 버전 Streamlit 대응 (클래스명이 다를 수 있어서 추가) */
+        .stApp > header { display: none !important; }
+        .stApp > footer { display: none !important; }
+        div[data-testid="stHeader"] { display: none !important; }
+        div[data-testid="stFooter"] { display: none !important; }
+        div[data-testid="stToolbar"] { display: none !important; }
+
+        /* 3. 여백 제거 (공간 확보) */
         .block-container {
             padding-top: 0rem !important;
             padding-bottom: 0rem !important;
@@ -78,16 +81,13 @@ st.markdown("""
             max-width: 100% !important;
         }
         
-        /* 폰트 사이즈 조정 */
-        .stMarkdown p { font-size: 0.8rem !important; }
-        .stDateInput label { display: none; }
-        div[data-testid="stDateInput"] { transform: scale(0.9); transform-origin: left top; }
+        /* 4. 스크롤바 숨기기 (전체 화면) */
+        ::-webkit-scrollbar { display: none; }
         
-        /* 모바일/임베드 환경에서 여백 제거 */
-        .appview-container .main .block-container {
-            padding-top: 0rem;
-            padding-bottom: 0rem;
-        }
+        /* 폰트 사이즈 조정 */
+        .stMarkdown p { font-size: 0.8rem !important; margin-bottom: 0px !important; }
+        .stDateInput label { display: none; }
+        div[data-testid="stDateInput"] { transform: scale(0.9); transform-origin: left top; margin-top: -10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,34 +110,21 @@ html_code = f"""
             max-width: 280px;
             padding-bottom: 0px; 
         }}
-        
         .header {{ 
-            font-size: 0.9rem;
-            font-weight: 800; 
-            margin: 5px 0 10px 0;
-            color: #333; 
-            text-align: center; 
+            font-size: 0.9rem; font-weight: 800; margin: 5px 0 10px 0;
+            color: #333; text-align: center; 
         }}
-        
         .calendar-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }}
         .day-name {{ text-align: center; color: #999; font-size: 0.6rem; margin-bottom: 2px; font-weight: 600; }}
-        
         .day {{ 
-            aspect-ratio: 1/0.85; 
-            border-radius: 6px; 
-            background: #fff; 
-            border: 1px solid #eee;
-            padding: 0px; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            aspect-ratio: 1/0.85; border-radius: 6px; background: #fff; border: 1px solid #eee;
+            padding: 0px; display: flex; flex-direction: column; align-items: center; justify-content: center; 
             position: relative; cursor: pointer; color: #333;
         }}
-        
         .day:hover {{ border-color: #FFD9E8; }}
         .day.today {{ border: 1px solid #E16259; color: #E16259; font-weight: bold; }}
         .day.has-event {{ background-color: #FFD9E8 !important; color: white !important; font-weight: bold; border: none; }}
-        
         .day-num {{ font-size: 0.75rem; margin-bottom: 1px; z-index: 10; }}
-        
         .dot-container {{ display: flex; gap: 2px; margin-top: 1px; }}
         .dot {{ width: 3px; height: 3px; background-color: #E16259; border-radius: 50%; }}
         .day.has-event .dot {{ background-color: white; }}
