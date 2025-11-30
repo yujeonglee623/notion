@@ -3,170 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yujeong Calendar</title>
+    <title>Debug Calendar</title>
     <style>
-        /* 깔끔 그 자체! 스크롤바도 없고 여백도 없음 */
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; background: transparent; }
-        
-        /* 캘린더 컨테이너 */
-        .container { width: 100%; max-width: 320px; background: white; border-radius: 16px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        
-        .header { font-size: 1.1rem; font-weight: 800; color: #333; text-align: center; margin-bottom: 15px; }
-        
-        .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .day-name { text-align: center; color: #aaa; font-size: 0.7rem; font-weight: 600; margin-bottom: 5px; }
-        
-        .day { 
-            aspect-ratio: 1/1; border-radius: 8px; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s; border: 1px solid transparent;
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        .error-box { 
+            background: #ffeded; color: #ff0000; border: 1px solid red; 
+            padding: 15px; border-radius: 10px; text-align: left; 
+            font-size: 0.9rem; white-space: pre-wrap; word-break: break-all;
         }
-        .day:hover { background-color: #f9f9f9; }
-        .day.selected { border-color: #333; }
-        
-        /* 오늘 */
-        .day.today { color: #E16259; font-weight: bold; }
-        
-        /* 데이터 있음 (핑크) */
-        .day.has-event { background-color: #FFD9E8; color: white; font-weight: bold; }
-        .day.has-event .dot { background-color: white; }
-        
-        .dot-box { display: flex; gap: 2px; margin-top: 3px; }
-        .dot { width: 4px; height: 4px; background-color: #E16259; border-radius: 50%; }
-
-        /* 하단 리스트 */
-        .list-area { width: 100%; max-width: 320px; margin-top: 15px; min-height: 100px; }
-        .task-item { 
-            background: white; padding: 8px 12px; border-radius: 8px; margin-bottom: 6px;
-            font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.03); border: 1px solid #eee;
-        }
-        .del-btn { color: #ccc; cursor: pointer; padding: 4px; }
-        .del-btn:hover { color: red; }
-        .empty-msg { text-align: center; color: #ccc; font-size: 0.8rem; margin-top: 20px; }
-        
-        /* 로딩 애니메이션 */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #FFD9E8; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .container { display: none; } /* 에러 나면 달력 숨김 */
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header" id="month-year"></div>
-        <div class="grid" id="calendar"></div>
-    </div>
+    <h3 id="status">데이터 불러오는 중...</h3>
+    
+    <div id="error-area" class="error-box" style="display:none;"></div>
 
-    <div class="list-area" id="list-area">
-        <div class="loader" id="loader"></div>
+    <div class="container" id="calendar-container">
+        <h2>성공! 🎉</h2>
+        <p>이제 다시 원래 코드로 돌려놔도 됩니다.</p>
     </div>
 
     <script>
-        let eventsData = {}; // 날짜별 데이터 { "2025-11-30": ["할일1"] }
-        let fullList = [];   // 전체 리스트 (삭제용 ID 포함)
-        
-        const calendarEl = document.getElementById('calendar');
-        const listEl = document.getElementById('list-area');
-        const loader = document.getElementById('loader');
-        
-        const date = new Date();
-        const currentYear = date.getFullYear();
-        const currentMonth = date.getMonth();
-
-        // 1. 파이썬(API)한테 데이터 달라고 요청하기
         async function fetchData() {
             try {
-                const res = await fetch('/api/get_tasks'); // 아까 만든 파이썬 주소
-                const data = await res.json();
-                eventsData = data.events;
-                fullList = data.list;
+                const res = await fetch('/api/get_tasks');
+                const text = await res.text(); // JSON이 아니라 에러 HTML일 수도 있어서 텍스트로 먼저 받음
                 
-                loader.style.display = 'none'; // 로딩 끝
-                renderCalendar();
-                showList(new Date().toISOString().split('T')[0]); // 오늘 날짜 리스트 보여주기
-            } catch (err) {
-                listEl.innerHTML = `<div class='empty-msg'>데이터 불러오기 실패 ㅠ<br>${err}</div>`;
-            }
-        }
-
-        // 2. 달력 그리기
-        function renderCalendar() {
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
-            
-            document.getElementById('month-year').innerText = `${currentYear}년 ${monthNames[currentMonth]}`;
-            calendarEl.innerHTML = `
-                <div class="day-name">일</div><div class="day-name">월</div><div class="day-name">화</div>
-                <div class="day-name">수</div><div class="day-name">목</div><div class="day-name">금</div><div class="day-name">토</div>
-            `;
-            
-            for(let i=0; i<firstDay; i++) calendarEl.innerHTML += `<div></div>`;
-            
-            for(let i=1; i<=lastDate; i++) {
-                const dateKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-                const hasEvent = eventsData[dateKey];
-                
-                let dotHtml = '';
-                if(hasEvent) {
-                    const count = Math.min(hasEvent.length, 3);
-                    dotHtml = `<div class="dot-box">${'<div class="dot"></div>'.repeat(count)}</div>`;
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error("서버 응답이 JSON이 아닙니다. (500 에러 가능성)\n" + text.substring(0, 200) + "...");
                 }
 
-                const todayClass = (i === new Date().getDate() && currentMonth === new Date().getMonth()) ? 'today' : '';
-                const eventClass = hasEvent ? 'has-event' : '';
-                
-                const dayDiv = document.createElement('div');
-                dayDiv.className = `day ${todayClass} ${eventClass}`;
-                dayDiv.innerHTML = `<span>${i}</span>${dotHtml}`;
-                dayDiv.onclick = () => showList(dateKey);
-                
-                calendarEl.appendChild(dayDiv);
+                // 파이썬에서 보낸 에러 메시지가 있는지 확인
+                if (data.error) {
+                    throw new Error("API 에러: " + data.error);
+                }
+
+                if (!data.events) {
+                    throw new Error("데이터 형식이 이상합니다. (events 키 없음)");
+                }
+
+                // 성공!
+                document.getElementById('status').innerText = "";
+                document.getElementById('calendar-container').style.display = 'block';
+
+            } catch (err) {
+                document.getElementById('status').innerText = "🚨 오류 발생!";
+                const errBox = document.getElementById('error-area');
+                errBox.style.display = 'block';
+                errBox.innerText = err.message;
             }
         }
 
-        // 3. 리스트 보여주기
-        function showList(dateKey) {
-            const filtered = fullList.filter(item => item.date === dateKey);
-            
-            // 선택된 날짜 표시 (디자인상)
-            const d = new Date(dateKey);
-            const dateStr = `${d.getMonth()+1}월 ${d.getDate()}일`;
-
-            let html = `<div style="font-size:0.9rem; font-weight:bold; margin-bottom:10px; color:#555;">📅 ${dateStr}</div>`;
-            
-            if (filtered.length === 0) {
-                html += `<div class="empty-msg">일정이 없어요!</div>`;
-            } else {
-                filtered.forEach(item => {
-                    const check = item.completed ? "✅" : "▫️";
-                    html += `
-                        <div class="task-item">
-                            <span>${check} ${item.task}</span>
-                            <span class="del-btn" onclick="deleteTask('${item.id}')">✕</span>
-                        </div>
-                    `;
-                });
-            }
-            listEl.innerHTML = html;
-        }
-
-        // 4. 삭제하기
-        async function deleteTask(pageId) {
-            if(!confirm("진짜 삭제할까?")) return;
-            
-            listEl.innerHTML = '<div class="loader"></div>'; // 로딩 표시
-            
-            await fetch('/api/delete_task', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ page_id: pageId })
-            });
-            
-            fetchData(); // 다시 데이터 불러오기 (새로고침 효과)
-        }
-
-        // 시작!
         fetchData();
     </script>
 </body>
