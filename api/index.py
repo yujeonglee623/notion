@@ -38,6 +38,11 @@ def list_page():
 def music_page():
     return render_template('music.html')
 
+# 4. ⭐ 디데이 페이지 (새로 추가!)
+@app.route('/dday')
+def dday_page():
+    return allow_iframe(render_template('dday.html'))
+
 # --- API (데이터 통신) ---
 @app.route('/api/get_tasks', methods=['GET'])
 def get_tasks():
@@ -79,3 +84,4 @@ def update_task():
 
 if __name__ == '__main__':
     app.run()
+
