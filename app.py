@@ -6,14 +6,12 @@ import streamlit.components.v1 as components
 from datetime import datetime
 
 # ==========================================
-# 🔐 유정이의 비밀 열쇠 (Streamlit Secrets에서 가져오기)
+# 🔐 유정이의 비밀 열쇠
 # ==========================================
-# 깃허브에는 키를 올리지 않고, 나중에 배포 사이트(Streamlit Cloud)에 따로 입력할 거야!
 try:
     NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
     DATABASE_ID = st.secrets["DATABASE_ID"]
 except:
-    # 혹시 로컬에서 실행할 때 에러 방지용 (임시)
     st.error("비밀키가 설정되지 않았어! 배포할 때 Secrets에 입력해야 해.")
     st.stop()
 
@@ -23,28 +21,10 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# ... (이 밑으로는 아까 그 코드 그대로 유지!) ...
-
 # ==========================================
-# 🧠 파이썬 백엔드
+# 🧠 파이썬 백엔드 (Only Reading!)
 # ==========================================
-def add_task_to_notion(task, date):
-    url = "https://api.notion.com/v1/pages"
-    data = {
-        "parent": {"database_id": DATABASE_ID},
-        "properties": {
-            "To-Do": {"title": [{"text": {"content": task}}]},
-            "Date": {"date": {"start": str(date)}},
-            "Complete": {"checkbox": False}
-        }
-    }
-    requests.post(url, headers=headers, json=data)
-
-def delete_page(page_id):
-    url = f"https://api.notion.com/v1/pages/{page_id}"
-    data = {"archived": True}
-    res = requests.patch(url, headers=headers, json=data)
-    return res.status_code == 200
+# 쓰기/삭제 함수는 다 지웠어! 오직 읽기만!
 
 def get_data():
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
@@ -61,11 +41,15 @@ def get_data():
     for result in results:
         try:
             props = result["properties"]
+            # Page ID는 이제 필요 없지만, 나중을 위해 남겨둠
             page_id = result["id"]
+            
             title_list = props.get("To-Do", {}).get("title", [])
             title = title_list[0]["plain_text"] if title_list else "제목 없음"
+            
             date_info = props.get("Date", {}).get("date", {})
             date = date_info.get("start") if date_info else None
+            
             completed = props.get("Complete", {}).get("checkbox", False)
             
             if not date: continue
@@ -82,26 +66,32 @@ def get_data():
     return json.dumps(calendar_events, ensure_ascii=False), pd.DataFrame(df_list)
 
 # ==========================================
-# 💅 UI 디자인
+# 💅 UI 디자인 (깔끔 그 자체 ✨)
 # ==========================================
 st.set_page_config(page_title="유정이의 핑크 캘린더", layout="wide")
-st.markdown("""<style>.block-container { padding-top: 1rem; } header, footer { visibility: hidden; }</style>""", unsafe_allow_html=True)
 
-# 1. 입력창
-st.markdown("### ✏️ 일정 추가")
-with st.form("input_form", clear_on_submit=True):
-    c1, c2, c3 = st.columns([3, 2, 1])
-    with c1: task_input = st.text_input("할 일", label_visibility="collapsed")
-    with c2: date_input = st.date_input("날짜", label_visibility="collapsed")
-    with c3: submitted = st.form_submit_button("저장")
-    if submitted and task_input:
-        add_task_to_notion(task_input, date_input)
-        st.rerun()
+# 여백 최소화 스타일
+st.markdown("""
+    <style>
+        .block-container { padding-top: 0rem; padding-bottom: 0rem; } 
+        header, footer { visibility: hidden; }
+        
+        /* 카드 스타일 */
+        .task-card {
+            background-color: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+    </style>
+""", unsafe_allow_html=True)
 
+# 데이터 가져오기
 events_json, df = get_data()
 
-# 2. 캘린더 (HTML) - 시각화용
-st.markdown("---")
+# 1. 캘린더 (HTML)
 html_code = f"""
 <!DOCTYPE html>
 <html>
@@ -121,7 +111,9 @@ html_code = f"""
         }}
         .day:hover {{ border-color: #FFD9E8; transform: translateY(-2px); }}
         .day.today {{ border: 2px solid #FFD9E8; color: #E16259; font-weight: bold; }}
+        
         .day.has-event {{ background-color: #FFD9E8 !important; color: white !important; font-weight: bold; border: none; }}
+        
         .day-num {{ font-size: 1.1rem; margin-bottom: 4px; z-index: 10; }}
         .dot-container {{ display: flex; gap: 4px; margin-top: 2px; }}
         .dot {{ width: 5px; height: 5px; background-color: #E16259; border-radius: 50%; }}
@@ -153,10 +145,12 @@ html_code = f"""
                 const day = document.createElement('div');
                 day.className = 'day';
                 const dateKey = `${{currentYear}}-${{String(currentMonth+1).padStart(2,'0')}}-${{String(i).padStart(2,'0')}}`;
+                
                 const numDiv = document.createElement('div');
                 numDiv.className = 'day-num';
                 numDiv.innerText = i;
                 day.appendChild(numDiv);
+                
                 const today = new Date();
                 if(i === today.getDate() && currentMonth === today.getMonth()) day.classList.add('today');
                 if(events[dateKey]) {{
@@ -183,43 +177,32 @@ html_code = f"""
 """
 components.html(html_code, height=950, scrolling=True)
 
-# 3. 👇 여기가 핵심! 날짜별 상세 보기 (필터링 기능)
+# 2. 상세 조회 (삭제 버튼 없이 깔끔하게 보여주기만 함)
 st.markdown("---")
-
-# 레이아웃: 왼쪽(날짜 선택) | 오른쪽(그 날짜의 일정 리스트)
 c1, c2 = st.columns([1, 2])
 
 with c1:
     st.markdown("### 🔍 날짜 선택")
-    st.info("캘린더에서 확인한 날짜를\n여기서 선택해주세요!")
-    # 기본값을 오늘 날짜로 설정
+    st.caption("노션 DB에서 일정을 관리하세요.")
     selected_date = st.date_input("확인할 날짜", datetime.now(), label_visibility="collapsed")
 
 with c2:
     st.markdown(f"### 📋 {selected_date.strftime('%m월 %d일')}의 일정")
-    
     if not df.empty:
-        # 1. 내가 선택한 날짜의 데이터만 걸러내기 (Filtering)
-        # 데이터프레임의 '날짜' 컬럼은 문자열(String)이거나 날짜형일 수 있으니 맞춰줘야 해
         filtered_df = df[df["날짜"] == str(selected_date)]
-        
         if not filtered_df.empty:
-            # 일정이 있으면 보여주기
             for index, row in filtered_df.iterrows():
-                # 카드 형태로 예쁘게 보여주기
-                with st.container():
-                    col_text, col_del = st.columns([4, 1])
-                    with col_text:
-                        # 체크박스로 완료 여부 보여주기 (노션엔 반영 안되지만 시각적으로)
-                        st.markdown(f"**▫️ {row['할일']}**")
-                    with col_del:
-                        # 삭제 버튼 (고유 키를 써서 버튼끼리 안 겹치게)
-                        if st.button("삭제", key=f"del_{row['ID']}"):
-                            if delete_page(row['ID']):
-                                st.toast("삭제 완료!")
-                                st.rerun()
-                    st.markdown("---") # 구분선
+                # 삭제 버튼 없이 그냥 텍스트만 깔끔하게 보여줌
+                check = "✅" if row['완료'] else "▫️"
+                st.markdown(
+                    f"""
+                    <div class="task-card">
+                        <b>{check} {row['할일']}</b>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
         else:
-            st.success("이 날은 일정이 없어요! 자유시간 😆")
+            st.info("이 날은 일정이 없어요!")
     else:
-        st.warning("등록된 전체 일정이 하나도 없어요.")
+        st.warning("등록된 전체 일정이 없습니다.")
