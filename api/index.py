@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, render_template, make_response
 import requests
 import os
 
-# ⭐ static 폴더 위치를 정확히 알려줘야 음악 파일이 로딩됨!
+# ⭐ templates 폴더가 api 폴더의 상위(..)에 있다는 걸 알려주는 설정
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
@@ -14,32 +14,31 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# 공통 헤더 설정 함수 (노션 임베드 허용)
+# iframe 허용 헤더를 붙여주는 함수
 def allow_iframe(content):
     response = make_response(content)
     response.headers['X-Frame-Options'] = 'ALLOWALL'
     response.headers['Content-Security-Policy'] = "frame-ancestors *"
     return response
 
-# 1. 캘린더 페이지 (기본 주소 / )
+# 1. 캘린더 페이지 (기본 주소)
 @app.route('/')
 def calendar_page():
     return allow_iframe(render_template('calendar.html'))
 
-# 2. 리스트 페이지 ( /list )
+# 2. 리스트 페이지
 @app.route('/list')
 def list_page():
     return allow_iframe(render_template('list.html'))
 
-# 3. ⭐ 음악 플레이어 페이지 ( /music ) - 새로 추가됨!
+# 3. 음악 페이지
 @app.route('/music')
 def music_page():
     return allow_iframe(render_template('music.html'))
 
-# --- API (노션 데이터 통신) ---
+# --- API (데이터 통신) ---
 @app.route('/api/get_tasks', methods=['GET'])
 def get_tasks():
-    # ... (기존 코드와 동일) ...
     if not NOTION_TOKEN or not DATABASE_ID: return jsonify({"error": "Env Var Error"}), 500
     try:
         url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
