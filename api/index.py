@@ -45,11 +45,15 @@ def music_page():
 def dday_page():
     return allow_iframe(render_template('dday.html'))
 
-# 5. ⭐ 유튜브 플레이리스트 ( /playlist ) - 새로 추가됨!
+# 5. ⭐ 유튜브 플레이리스트 ( /playlist )
 @app.route('/playlist')
 def playlist_page():
     return allow_iframe(render_template('playlist.html'))
 
+# 6. 만다라트 (/mandalart)
+@app.route('/mandalart')
+def mandalart_page():
+    return allow_iframe(render_template('mandalart.html'))
 
 # ==========================================
 # 📡 데이터 통신 API
@@ -95,3 +99,4 @@ def update_task():
 
 if __name__ == '__main__':
     app.run()
+
