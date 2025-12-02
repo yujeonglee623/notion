@@ -26,48 +26,70 @@
             width: 100%; height: 100%;
         }
 
+        /* 주변 칸 디자인 (핑크 테두리) */
         .box {
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid #FFD9E8;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #FFD9E8; /* 핑크 테두리 */
             border-radius: 12px;
             display: flex; justify-content: center; align-items: center;
             text-align: center;
             font-size: 0.9rem; font-weight: bold; color: #555;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(255, 217, 232, 0.1); /* 그림자도 핑크빛 */
             padding: 5px;
             word-break: keep-all;
         }
 
+        /* 마우스 올렸을 때 (연한 핑크 배경) */
         .box:hover {
-            background: #fff0f5;
+            background: #FFF0F5; /* 라벤더 블러쉬 (아주 연한 핑크) */
             transform: scale(1.05);
-            border-color: #E16259;
+            border-color: #E16259; /* 진한 핑크 */
             color: #E16259;
         }
 
-        /* 정중앙 (핵심 목표) */
+        /* ⭐ 정중앙 (핵심 목표) 디자인 변경! */
         .box.center {
-            background: #E16259;
+            /* 👇 여기 색깔을 바꾸면 돼! */
+            background: #D8B4FE; /* 연보라 (Lavender) */
+            /* background: #A2D2FF; <--- 하늘색을 원하면 이걸로 바꿔! */
+            
             color: white;
             border: none;
             font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(216, 180, 254, 0.4);
         }
-        .box.center:hover { background: #d63384; transform: scale(1.1); }
+        
+        .box.center:hover { 
+            background: #C084FC; /* 호버 시 조금 더 진한 보라 */
+            transform: scale(1.1); 
+        }
 
-        /* 뒤로가기 버튼 (상세화면에서 보임) */
+        /* 뒤로가기 버튼 */
         #back-btn {
             position: absolute; top: -40px; left: 0;
-            background: white; border: 2px solid #FFD9E8;
+            background: white; 
+            border: 2px solid #D8B4FE; /* 보라색 테두리 */
             padding: 5px 15px; border-radius: 20px;
-            cursor: pointer; font-weight: bold; color: #E16259;
-            display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer; font-weight: bold; 
+            color: #D8B4FE; /* 보라색 글씨 */
+            display: none; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: 0.2s;
         }
-        #back-btn:hover { background: #ffe3ec; }
+        #back-btn:hover { 
+            background: #D8B4FE; 
+            color: white; 
+        }
 
         /* 로딩 */
-        .loader { position: absolute; top:50%; left:50%; transform:translate(-50%, -50%); color: #E16259; font-weight: bold; }
+        .loader { 
+            position: absolute; top:50%; left:50%; 
+            transform:translate(-50%, -50%); 
+            color: #D8B4FE; /* 로딩 글씨도 보라색 */
+            font-weight: bold; 
+        }
     </style>
 </head>
 <body>
@@ -84,10 +106,7 @@
         const backBtn = document.getElementById('back-btn');
         const loader = document.getElementById('loader');
 
-        // 위치 매핑 (3x3 그리드 순서대로)
-        // A B C
-        // D E F  (E가 센터)
-        // G H I
+        // 위치 매핑
         const positions = ['A', 'B', 'C', 'D', 'CENTER', 'F', 'G', 'H', 'I'];
 
         async function fetchData() {
@@ -97,7 +116,7 @@
                 
                 if (fullData.error) throw new Error(fullData.error);
                 
-                renderMain(); // 메인 화면 그리기
+                renderMain(); 
                 loader.style.display = 'none';
             } catch (err) {
                 loader.innerText = "Error!";
@@ -105,7 +124,7 @@
             }
         }
 
-        // 1. 메인 뷰 (핵심 + 8개 서브)
+        // 1. 메인 뷰
         function renderMain() {
             grid.innerHTML = '';
             backBtn.style.display = 'none';
@@ -118,7 +137,6 @@
                 
                 el.innerText = item ? item.topic : "";
                 
-                // 클릭하면 상세 뷰로 이동 (센터 제외)
                 if (pos !== 'CENTER' && item) {
                     el.onclick = () => renderDetail(item);
                 }
@@ -127,16 +145,12 @@
             });
         }
 
-        // 2. 상세 뷰 (서브 목표 + 8개 실천계획)
+        // 2. 상세 뷰
         function renderDetail(data) {
             grid.innerHTML = '';
             backBtn.style.display = 'block';
 
-            // 9개 칸 채우기 (가운데는 주제, 나머지는 실천계획)
-            // 계획이 8개보다 적으면 빈칸으로
             const plans = data.plans || [];
-            
-            // 순서: 0 1 2 / 3 Center 4 / 5 6 7
             let planIndex = 0;
             
             for (let i = 0; i < 9; i++) {
