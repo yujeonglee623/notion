@@ -1,122 +1,14 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YuJeong Playlist</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body {
-            margin: 0; padding: 0; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
-            background: transparent;
-            font-family: 'Segoe UI', sans-serif;
-        }
-        
-        .player-container {
-            width: 240px; 
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 15px;
-            box-shadow: 0 5px 20px rgba(225, 98, 89, 0.15);
-            text-align: center;
-            border: 2px solid #FFD9E8;
-            position: relative;
-            z-index: 10;
-        }
-
-        .playlist-select {
-            width: 100%; padding: 5px; margin-bottom: 15px;
-            border: 1px solid #FFD9E8; border-radius: 8px;
-            background: white; color: #555; font-size: 0.8rem;
-            outline: none; cursor: pointer; text-align: center;
-        }
-        
-        .img-container {
-            width: 110px; height: 110px;
-            border-radius: 50%; margin: 0 auto 10px;
-            position: relative;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-            border: 3px solid white; overflow: hidden;
-            background: #fff;
-        }
-        .img-container img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .rotate { animation: rotation 10s infinite linear; }
-        @keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(359deg); } }
-        
-        h2 { margin: 0; font-size: 0.85rem; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
-        h3 { margin: 3px 0 12px; font-size: 0.7rem; color: #E16259; }
-        
-        .progress-container {
-            background: #ffe3ec; border-radius: 5px; cursor: pointer;
-            margin: 8px 0; height: 4px; width: 100%;
-        }
-        .progress {
-            background-color: #E16259; border-radius: 5px;
-            height: 100%; width: 0%; transition: width 0.1s linear;
-        }
-        
-        .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 0 5px; }
-        .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; transition: 0.2s; }
-        .btn:hover { color: #E16259; }
-        .btn.active { color: #E16259; }
-        
-        .main-controls { display: flex; align-items: center; gap: 15px; }
-        .btn-big { font-size: 1.8rem; color: #E16259; }
-        .btn-big:hover { transform: scale(1.1); }
-
-        /* ⭐ 유튜브 플레이어: 투명하게 만들어서 뒤에 숨김 (삭제하면 안됨!) */
-        #hidden-player-wrapper {
-            position: absolute; top: 0; left: 0;
-            width: 1px; height: 1px;
-            opacity: 0.01; /* 눈에 안 보임 */
-            pointer-events: none;
-            z-index: -1;
-        }
-    </style>
-</head>
-<body>
-    <div class="player-container">
-        <select id="playlist-dropdown" class="playlist-select"></select>
-
-        <div class="img-container" id="cover-container">
-            <img src="https://via.placeholder.com/150/FFD9E8/FFFFFF?text=Music" alt="cover" id="cover">
-        </div>
-        
-        <h2 id="title">Loading...</h2>
-        <h3 id="artist">YouTube</h3>
-        
-        <div class="progress-container" id="progress-container">
-            <div class="progress" id="progress"></div>
-        </div>
-        
-        <div class="controls">
-            <button class="btn" id="shuffle" title="Random"><i class="fas fa-random"></i></button>
-            <div class="main-controls">
-                <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
-                <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
-                <button class="btn" id="next"><i class="fas fa-forward"></i></button>
-            </div>
-            <button class="btn" style="cursor: default; color: #FF0000;"><i class="fab fa-youtube"></i></button>
-        </div>
-    </div>
-
-    <div id="hidden-player-wrapper">
-        <div id="yt-player"></div>
-    </div>
-
-    <script>
-        // ⭐ 유정이의 플리 ID (여기에 정확한 ID 넣기!)
+<script>
+        // ⭐ 유정이 플리 ID (PL... 전체!)
         const MY_PLAYLISTS = [
-            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" }
+            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" }, 
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
         let updateTimer;
         let isShuffle = false;
+        let isReady = false; // 준비 상태 체크
 
         const dropdown = document.getElementById('playlist-dropdown');
         const playBtn = document.getElementById('play');
@@ -130,7 +22,7 @@
         const progress = document.getElementById('progress');
         const progressContainer = document.getElementById('progress-container');
 
-        // 드롭다운 채우기
+        // 드롭다운 설정
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id;
@@ -153,7 +45,7 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('yt-player', {
-                height: '100%', width: '100%',
+                height: '200', width: '200', // ⭐ 크기를 좀 키움 (안 보이게 숨길 거니까 괜찮아)
                 playerVars: {
                     'listType': 'playlist',
                     'list': currentPlaylistId,
@@ -165,36 +57,44 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError // ⭐ 에러 처리기 연결
+                    'onError': onPlayerError
                 }
             });
         }
 
-        // ⭐ 핵심: 재생 안 되는 영상 자동 스킵!
         function onPlayerError(event) {
-            console.log("Error skipped:", event.data);
-            // 에러 나면 0.5초 뒤 다음 곡으로 강제 이동
-            setTimeout(() => {
-                if(player && player.nextVideo) player.nextVideo();
-            }, 500);
+            console.log("Error:", event.data);
+            // 에러 나면 다음 곡으로
+            setTimeout(() => { if(player) player.nextVideo(); }, 1000);
         }
 
         function onPlayerReady(event) {
-            // 로딩 완료
+            isReady = true;
+            // 준비되면 제목을 "Ready to Play!"로 변경
+            titleEl.innerText = "Ready to Play! 🎵";
+            artistEl.innerText = "Click Play Button";
+            // 재생 버튼 활성화 효과
+            playBtn.style.color = "#E16259"; 
+            playBtn.style.transform = "scale(1.1)";
+            
+            // 1초 뒤 첫 곡 정보 가져오기
             setTimeout(updateTrackInfo, 1000);
         }
 
         function onPlayerStateChange(event) {
+            // 재생 중 (1)
             if (event.data == YT.PlayerState.PLAYING) {
                 coverContainer.classList.add('rotate');
-                playBtn.querySelector('i').classList.remove('fa-play');
-                playBtn.querySelector('i').classList.add('fa-pause');
+                // 아이콘을 일시정지(||)로 변경
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>'; 
                 startProgressLoop();
                 updateTrackInfo();
-            } else {
+            } 
+            // 일시정지 (2) 또는 버퍼링 (3)
+            else {
                 coverContainer.classList.remove('rotate');
-                playBtn.querySelector('i').classList.add('fa-play');
-                playBtn.querySelector('i').classList.remove('fa-pause');
+                // 아이콘을 재생(▶)으로 변경
+                playBtn.innerHTML = '<i class="fas fa-play"></i>'; 
                 stopProgressLoop();
             }
         }
@@ -210,13 +110,20 @@
             }
         }
 
-        // ⭐ 핑크 버튼 누르면 유튜브 조종
+        // ⭐ 재생 버튼 로직 수정 (가장 강력하게!)
         playBtn.addEventListener('click', () => {
-            if(!player) return;
+            if(!isReady || !player) {
+                alert("로딩 중입니다! 잠시만 기다려주세요.");
+                return;
+            }
+            
             const state = player.getPlayerState();
-            // 재생 중이면 멈추고, 멈춰있으면 재생
-            if (state == 1) player.pauseVideo();
-            else player.playVideo();
+            // 재생 중(1)이거나 버퍼링(3)이면 멈추고, 아니면 재생!
+            if (state == 1 || state == 3) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
         });
 
         prevBtn.addEventListener('click', () => player && player.previousVideo());
@@ -226,8 +133,13 @@
             if(!player) return;
             isShuffle = !isShuffle;
             player.setShuffle(isShuffle);
-            if(isShuffle) shuffleBtn.classList.add('active');
-            else shuffleBtn.classList.remove('active');
+            if(isShuffle) {
+                shuffleBtn.classList.add('active');
+                // 셔플 적용을 위해 다음 곡으로 넘김 (선택사항)
+                // player.nextVideo();
+            } else {
+                shuffleBtn.classList.remove('active');
+            }
         });
 
         function startProgressLoop() {
@@ -255,5 +167,3 @@
             player.seekTo((clickX / width) * duration, true);
         });
     </script>
-</body>
-</html>
