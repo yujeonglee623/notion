@@ -15,7 +15,7 @@
         
         .player-container {
             width: 240px; 
-            background: #ffffff; /* 흰색 배경 */
+            background: #ffffff;
             border-radius: 16px;
             padding: 15px;
             box-shadow: 0 5px 20px rgba(225, 98, 89, 0.15);
@@ -23,25 +23,24 @@
             border: 2px solid #FFD9E8;
             position: relative;
             z-index: 10;
+            overflow: hidden; /* 내부 요소 넘치면 숨김 */
         }
 
-        /* ⭐ 시작 버튼 오버레이 (여기가 핵심!) */
+        /* 시작 오버레이 */
         #start-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 100;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            z-index: 100; /* 맨 위에 뜸 */
             cursor: pointer;
-            transition: opacity 0.3s;
         }
-        #start-overlay i { font-size: 3rem; color: #E16259; margin-bottom: 10px; }
-        #start-overlay span { font-size: 0.9rem; color: #555; font-weight: bold; }
+        #start-overlay i { font-size: 3rem; color: #E16259; margin-bottom: 10px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
         .playlist-select {
-            width: 100%; padding: 5px; margin-bottom: 15px;
+            width: 100%; padding: 5px; margin-bottom: 10px;
             border: 1px solid #FFD9E8; border-radius: 8px;
             background: white; color: #333; font-size: 0.8rem;
             outline: none; cursor: pointer; text-align: center;
@@ -49,7 +48,7 @@
         
         .img-container {
             width: 110px; height: 110px;
-            border-radius: 50%; margin: 0 auto 10px;
+            border-radius: 50%; margin: 0 auto 5px;
             position: relative;
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
             border: 3px solid white; overflow: hidden;
@@ -60,34 +59,35 @@
         .rotate { animation: rotation 10s infinite linear; }
         @keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(359deg); } }
         
-        h2 { margin: 0; font-size: 0.85rem; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
-        h3 { margin: 3px 0 12px; font-size: 0.7rem; color: #E16259; }
+        h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
+        h3 { margin: 0 0 5px; font-size: 0.7rem; color: #E16259; }
         
+        /* 상태 메시지 (디버깅용) */
+        #status-msg { font-size: 0.6rem; color: #aaa; margin-bottom: 10px; height: 10px; }
+
         .progress-container {
             background: #ffe3ec; border-radius: 5px; cursor: pointer;
-            margin: 8px 0; height: 4px; width: 100%;
+            margin: 5px 0 10px; height: 4px; width: 100%;
         }
         .progress {
             background-color: #E16259; border-radius: 5px;
             height: 100%; width: 0%; transition: width 0.1s linear;
         }
         
-        .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 0 5px; }
+        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; }
         .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; transition: 0.2s; }
         .btn:hover { color: #E16259; }
         .btn.active { color: #E16259; }
-        
         .main-controls { display: flex; align-items: center; gap: 15px; }
         .btn-big { font-size: 1.8rem; color: #E16259; }
         .btn-big:hover { transform: scale(1.1); }
 
-        /* 유튜브 플레이어 숨김 (하지만 크기는 줌) */
-        #hidden-player-wrapper {
-            position: absolute; top: 0; left: 0;
-            width: 300px; height: 300px; /* 크기를 넉넉하게 */
-            opacity: 0.001; /* 안 보임 */
-            pointer-events: none;
-            z-index: -1;
+        /* ⭐ 유튜브 플레이어 (숨기지 않고 1px로 만듦) */
+        #yt-player-box {
+            width: 1px; height: 1px; 
+            overflow: hidden;
+            opacity: 0.01;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -106,13 +106,12 @@
         
         <h2 id="title">Loading...</h2>
         <h3 id="artist">YouTube</h3>
-        
-        <div class="progress-container" id="progress-container">
+        <div id="status-msg">Initializing...</div> <div class="progress-container" id="progress-container">
             <div class="progress" id="progress"></div>
         </div>
         
         <div class="controls">
-            <button class="btn" id="shuffle" title="Random"><i class="fas fa-random"></i></button>
+            <button class="btn" id="shuffle"><i class="fas fa-random"></i></button>
             <div class="main-controls">
                 <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
                 <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
@@ -120,22 +119,24 @@
             </div>
             <button class="btn" style="cursor: default; color: #FF0000;"><i class="fab fa-youtube"></i></button>
         </div>
-    </div>
 
-    <div id="hidden-player-wrapper">
-        <div id="yt-player"></div>
+        <div id="yt-player-box">
+            <div id="yt-player"></div>
+        </div>
     </div>
 
     <script>
         // ⭐ 유정이 플리 ID
         const MY_PLAYLISTS = [
-            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" },
+            { name: "🎵 내 최애 플리", id: "PLwNuT9q3Y2siGjjg3D9goxnOVMtDJv69K" }, 
+            { name: "🔥 노동요", id: "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m" }
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
         let updateTimer;
         let isShuffle = false;
+        let isReady = false;
 
         const startOverlay = document.getElementById('start-overlay');
         const dropdown = document.getElementById('playlist-dropdown');
@@ -149,8 +150,13 @@
         const coverContainer = document.getElementById('cover-container');
         const progress = document.getElementById('progress');
         const progressContainer = document.getElementById('progress-container');
+        const statusMsg = document.getElementById('status-msg');
 
-        // 드롭다운 채우기
+        function setStatus(msg) {
+            statusMsg.innerText = msg;
+            console.log("[Player Status]", msg);
+        }
+
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id;
@@ -158,18 +164,21 @@
             dropdown.appendChild(option);
         });
 
-        // ⭐ 시작 오버레이 클릭 시 실행
         startOverlay.addEventListener('click', () => {
-            if (player && player.playVideo) {
-                player.playVideo(); // 강제 재생
+            if (isReady && player) {
+                setStatus("Starting...");
+                player.playVideo();
                 startOverlay.style.opacity = '0';
                 setTimeout(() => startOverlay.style.display = 'none', 300);
+            } else {
+                alert("아직 로딩 중이에요! 잠시만 기다려주세요.");
             }
         });
 
         dropdown.addEventListener('change', (e) => {
             currentPlaylistId = e.target.value;
             if(player && player.loadPlaylist) {
+                setStatus("Changing Playlist...");
                 player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
             }
         });
@@ -180,6 +189,7 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
+            setStatus("API Loaded");
             player = new YT.Player('yt-player', {
                 height: '100%', width: '100%',
                 playerVars: {
@@ -188,8 +198,7 @@
                     'playsinline': 1,
                     'controls': 0,
                     'disablekb': 1,
-                    'origin': window.location.origin,
-                    'autoplay': 0 // 자동재생은 끔 (오버레이 클릭으로 시작)
+                    'origin': window.location.origin
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -200,28 +209,38 @@
         }
 
         function onPlayerError(event) {
-            console.log("Error skipped:", event.data);
-            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 500);
+            setStatus("Error: " + event.data);
+            setTimeout(() => { 
+                setStatus("Skipping error video...");
+                if(player) player.nextVideo(); 
+            }, 1000);
         }
 
         function onPlayerReady(event) {
-            // 로딩되면 제목 업데이트
+            isReady = true;
+            setStatus("Ready! Click to Start");
+            titleEl.innerText = "Ready to Play!";
+            artistEl.innerText = "Click Overlay";
+            
+            // 첫 곡 정보 미리 로드
             setTimeout(updateTrackInfo, 1000);
         }
 
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
-                // 재생 시작되면 오버레이 확실하게 제거
-                startOverlay.style.display = 'none';
-                
+                setStatus("Playing 🎵");
+                startOverlay.style.display = 'none'; // 재생되면 오버레이 확실히 제거
                 coverContainer.classList.add('rotate');
                 playBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 startProgressLoop();
                 updateTrackInfo();
-            } else {
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                setStatus("Paused ⏸️");
                 coverContainer.classList.remove('rotate');
                 playBtn.innerHTML = '<i class="fas fa-play"></i>';
                 stopProgressLoop();
+            } else if (event.data == YT.PlayerState.BUFFERING) {
+                setStatus("Buffering...");
             }
         }
 
