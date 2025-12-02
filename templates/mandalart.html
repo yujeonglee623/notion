@@ -1,176 +1,29 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YuJeong Mandalart</title>
-    <style>
-        body {
-            margin: 0; padding: 0; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
-            background: transparent;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-        
-        .container {
-            width: 320px; height: 320px;
-            position: relative;
-        }
-
-        /* 3x3 그리드 */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 8px;
-            width: 100%; height: 100%;
-        }
-
-        /* 주변 칸 디자인 (핑크 테두리) */
-        .box {
-            background: rgba(255, 255, 255, 0.95);
-            border: 2px solid #FFD9E8; /* 핑크 테두리 */
-            border-radius: 12px;
-            display: flex; justify-content: center; align-items: center;
-            text-align: center;
-            font-size: 0.9rem; font-weight: bold; color: #555;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(255, 217, 232, 0.1); /* 그림자도 핑크빛 */
-            padding: 5px;
-            word-break: keep-all;
-        }
-
-        /* 마우스 올렸을 때 (연한 핑크 배경) */
-        .box:hover {
-            background: #FFF0F5; /* 라벤더 블러쉬 (아주 연한 핑크) */
-            transform: scale(1.05);
-            border-color: #E16259; /* 진한 핑크 */
-            color: #E16259;
-        }
-
-        /* ⭐ 정중앙 (핵심 목표) 디자인 변경! */
-        .box.center {
-            /* 👇 여기 색깔을 바꾸면 돼! */
-            background: #D8B4FE; /* 연보라 (Lavender) */
-            /* background: #A2D2FF; <--- 하늘색을 원하면 이걸로 바꿔! */
-            
-            color: white;
-            border: none;
-            font-size: 1.1rem;
-            box-shadow: 0 4px 15px rgba(216, 180, 254, 0.4);
-        }
-        
-        .box.center:hover { 
-            background: #C084FC; /* 호버 시 조금 더 진한 보라 */
-            transform: scale(1.1); 
-        }
-
-        /* 뒤로가기 버튼 */
-        #back-btn {
-            position: absolute; top: -40px; left: 0;
-            background: white; 
-            border: 2px solid #D8B4FE; /* 보라색 테두리 */
-            padding: 5px 15px; border-radius: 20px;
-            cursor: pointer; font-weight: bold; 
-            color: #D8B4FE; /* 보라색 글씨 */
-            display: none; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: 0.2s;
-        }
-        #back-btn:hover { 
-            background: #D8B4FE; 
-            color: white; 
-        }
-
-        /* 로딩 */
-        .loader { 
-            position: absolute; top:50%; left:50%; 
-            transform:translate(-50%, -50%); 
-            color: #D8B4FE; /* 로딩 글씨도 보라색 */
-            font-weight: bold; 
-        }
-    </style>
-</head>
-<body>
-
-    <div class="container">
-        <button id="back-btn">⬅ Back</button>
-        <div class="loader" id="loader">Loading...</div>
-        <div class="grid" id="grid"></div>
-    </div>
-
-    <script>
-        let fullData = {};
-        const grid = document.getElementById('grid');
-        const backBtn = document.getElementById('back-btn');
-        const loader = document.getElementById('loader');
-
-        // 위치 매핑
-        const positions = ['A', 'B', 'C', 'D', 'CENTER', 'F', 'G', 'H', 'I'];
-
-        async function fetchData() {
+async function fetchData() {
+            loader.innerText = "데이터 요청 중...";
             try {
                 const res = await fetch('/api/get_mandalart');
-                fullData = await res.json();
+                const text = await res.text(); // JSON 변환 전 원본 확인
                 
-                if (fullData.error) throw new Error(fullData.error);
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error("서버 오류 (500) 발생: " + text.substring(0, 100));
+                }
                 
+                if (data.error) throw new Error("API 에러: " + data.error);
+                
+                // 데이터가 비어있는지 확인
+                if (Object.keys(data).length === 0) {
+                    throw new Error("데이터가 텅 비었습니다! \n(노션 DB 속성 이름이 '주제', '위치'가 맞는지 확인해주세요)");
+                }
+
+                fullData = data;
                 renderMain(); 
                 loader.style.display = 'none';
             } catch (err) {
-                loader.innerText = "Error!";
+                loader.style.display = 'block';
+                loader.innerHTML = `<span style="color:red; font-size:0.7rem;">🚨 ${err.message}</span>`;
                 console.error(err);
             }
         }
-
-        // 1. 메인 뷰
-        function renderMain() {
-            grid.innerHTML = '';
-            backBtn.style.display = 'none';
-
-            positions.forEach(pos => {
-                const item = fullData[pos];
-                const el = document.createElement('div');
-                el.className = 'box';
-                if (pos === 'CENTER') el.classList.add('center');
-                
-                el.innerText = item ? item.topic : "";
-                
-                if (pos !== 'CENTER' && item) {
-                    el.onclick = () => renderDetail(item);
-                }
-                
-                grid.appendChild(el);
-            });
-        }
-
-        // 2. 상세 뷰
-        function renderDetail(data) {
-            grid.innerHTML = '';
-            backBtn.style.display = 'block';
-
-            const plans = data.plans || [];
-            let planIndex = 0;
-            
-            for (let i = 0; i < 9; i++) {
-                const el = document.createElement('div');
-                el.className = 'box';
-                
-                if (i === 4) { // 정중앙
-                    el.classList.add('center');
-                    el.innerText = data.topic;
-                } else {
-                    el.innerText = plans[planIndex] || "";
-                    planIndex++;
-                }
-                grid.appendChild(el);
-            }
-        }
-
-        backBtn.onclick = renderMain;
-
-        fetchData();
-    </script>
-</body>
-</html>
