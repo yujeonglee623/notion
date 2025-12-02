@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>YuJeong Playlist</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -33,9 +34,9 @@
             outline: none; cursor: pointer; text-align: center;
         }
         
-        /* 영상 틀 */
+        /* 영상 나오는 곳 (동그라미) */
         .video-wrapper {
-            width: 130px; height: 130px; /* 크기 조금 키움 */
+            width: 130px; height: 130px;
             border-radius: 50%; 
             margin: 0 auto 10px;
             position: relative;
@@ -43,15 +44,15 @@
             border: 4px solid #FFD9E8; 
             overflow: hidden; 
             background: #000;
-            z-index: 20; /* 제일 위로 올림 */
+            z-index: 20;
         }
 
-        /* ⭐ 유튜브 플레이어 (직접 클릭 가능하게 설정!) */
-        #yt-player {
+        /* ⭐ Iframe 직접 제어 (꽉 채우기) */
+        iframe {
             width: 200%; height: 200%;
             margin-left: -50%; margin-top: -50%;
-            pointer-events: auto; /* ⭐⭐⭐ 핵심: 클릭 허용! */
-            cursor: pointer;
+            border: none;
+            pointer-events: auto; /* 클릭 허용 */
         }
         
         h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
@@ -62,29 +63,22 @@
         .btn:hover { color: #E16259; }
         .main-controls { display: flex; align-items: center; gap: 15px; }
         .btn-big { font-size: 1.8rem; color: #E16259; }
-        
-        /* 안내 문구 */
-        .hint { font-size: 0.6rem; color: #aaa; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="player-container">
         <select id="playlist-dropdown" class="playlist-select"></select>
 
-        <div class="video-wrapper">
-            <div id="yt-player"></div>
-        </div>
+        <div class="video-wrapper" id="player-mount"></div>
         
-        <div class="hint">👆 영상을 직접 클릭해보세요!</div>
-
-        <h2 id="title">Loading...</h2>
-        <h3 id="artist">YouTube</h3>
+        <h2 id="title">Ready to Play</h2>
+        <h3 id="artist">Touch Video or Play</h3>
         
         <div class="controls">
             <button class="btn" id="shuffle"><i class="fas fa-random"></i></button>
             <div class="main-controls">
                 <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
-                <button class="btn btn-big" id="play_icon"><i class="fas fa-play"></i></button>
+                <button class="btn btn-big" id="play_btn"><i class="fas fa-play"></i></button>
                 <button class="btn" id="next"><i class="fas fa-forward"></i></button>
             </div>
             <button class="btn" style="cursor: default; color: #FF0000;"><i class="fab fa-youtube"></i></button>
@@ -92,9 +86,10 @@
     </div>
 
     <script>
-        // ⭐ 테스트용 디즈니 ID (이게 되면 유정이 ID 문제임)
+        // ⭐ 유정이의 플리 ID
         const MY_PLAYLISTS = [
-            { name: "☕ Lofi Study (테스트용)", id: "PL6NdkXsPL07KN01gH2vucRgQAqd0pDBnM" },
+            { name: "🎵 내 최애 플리", id: "PLwNuT9q3Y2siGjjg3D9goxnOVMtDJv69K" }, 
+            { name: "🔥 노동요", id: "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m" }
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
@@ -102,71 +97,78 @@
         let isShuffle = false;
 
         const dropdown = document.getElementById('playlist-dropdown');
+        const playBtn = document.getElementById('play_btn');
         const titleEl = document.getElementById('title');
-        const artistEl = document.getElementById('artist');
-        const playIcon = document.getElementById('play_icon');
+        const mountPoint = document.getElementById('player-mount');
 
+        // 드롭다운 채우기
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id; option.text = pl.name; dropdown.appendChild(option);
         });
 
-        dropdown.addEventListener('change', (e) => {
-            currentPlaylistId = e.target.value;
-            if(player && player.loadPlaylist) {
-                player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
-            }
-        });
+        // 1. 처음엔 그냥 Iframe을 HTML 문자열로 꽂아버림 (가장 확실한 방법)
+        function createIframe(playlistId) {
+            // 현재 페이지 주소 (Origin) 가져오기
+            const origin = window.location.origin;
+            
+            // Iframe 생성
+            const iframeHTML = `
+                <iframe id="yt-player" 
+                    src="https://www.youtube.com/embed/?listType=playlist&list=${playlistId}&index=0&enablejsapi=1&origin=${origin}&playsinline=1"
+                    allow="autoplay; encrypted-media" 
+                    allowfullscreen>
+                </iframe>
+            `;
+            mountPoint.innerHTML = iframeHTML;
 
+            // API 다시 연결 (버튼 제어를 위해)
+            if(window.YT && window.YT.Player) {
+                new YT.Player('yt-player', {
+                    events: {
+                        'onStateChange': onPlayerStateChange,
+                        'onReady': onPlayerReady,
+                        'onError': onPlayerError
+                    }
+                });
+            }
+        }
+
+        // 초기 실행
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
+        // API 다운로드 완료되면 플레이어 연결
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('yt-player', {
-                height: '100%', width: '100%',
-                playerVars: {
-                    'listType': 'playlist',
-                    'list': currentPlaylistId,
-                    'playsinline': 1,
-                    'controls': 0, 
-                    'disablekb': 1,
-                    // 👇 여기를 이렇게 바꿔봐! (https:// 꼭 붙여서)
-                    'origin': 'https://' + window.location.hostname 
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
+            createIframe(currentPlaylistId);
         }
 
-        function onPlayerError(event) {
-            let msg = "오류 발생 (" + event.data + ")";
-            if(event.data === 150 || event.data === 101) msg = "퍼가기 금지된 영상입니다 (자동 스킵)";
-            else if(event.data === 100) msg = "영상을 찾을 수 없습니다.";
-            
-            console.log(msg);
-            // 에러 시 다음 곡으로
-            setTimeout(() => { if(player) player.nextVideo(); }, 1000);
-        }
+        dropdown.addEventListener('change', (e) => {
+            currentPlaylistId = e.target.value;
+            createIframe(currentPlaylistId);
+        });
 
         function onPlayerReady(event) {
-            titleEl.innerText = "Ready!";
-            artistEl.innerText = "Touch Video to Play";
+            player = event.target;
             player.setVolume(100);
             updateTrackInfo();
         }
 
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
-                playIcon.innerHTML = '<i class="fas fa-pause"></i>';
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 updateTrackInfo();
             } else {
-                playIcon.innerHTML = '<i class="fas fa-play"></i>';
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
             }
+        }
+
+        function onPlayerError(event) {
+            console.log("Error:", event.data);
+            // 에러 나면 다음 곡으로
+            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 1000);
         }
 
         function updateTrackInfo() {
@@ -174,31 +176,28 @@
             const data = player.getVideoData();
             if (data && data.title) {
                 titleEl.innerText = data.title;
-                artistEl.innerText = data.author;
             }
         }
 
-        // 버튼 기능들
+        // 버튼 제어
+        playBtn.addEventListener('click', () => {
+            if(!player) return;
+            const state = player.getPlayerState();
+            if (state == 1) player.pauseVideo();
+            else player.playVideo();
+        });
+
         document.getElementById('prev').addEventListener('click', () => player && player.previousVideo());
         document.getElementById('next').addEventListener('click', () => player && player.nextVideo());
         
-        // 핑크 버튼 눌러도 재생 시도 (하지만 영상 클릭이 더 확실함)
-        playIcon.addEventListener('click', () => {
-            if(!player) return;
-            const state = player.getPlayerState();
-            if(state == 1) player.pauseVideo(); else player.playVideo();
-        });
-
         document.getElementById('shuffle').addEventListener('click', () => {
             if(!player) return;
             isShuffle = !isShuffle;
             player.setShuffle(isShuffle);
-            if(isShuffle) {
-                document.getElementById('shuffle').classList.add('active');
-            } else {
-                document.getElementById('shuffle').classList.remove('active');
-            }
+            if(isShuffle) document.getElementById('shuffle').classList.add('active');
+            else document.getElementById('shuffle').classList.remove('active');
         });
+
     </script>
 </body>
 </html>
