@@ -36,7 +36,7 @@
         
         /* 영상 나오는 곳 (동그라미) */
         .video-wrapper {
-            width: 130px; height: 130px;
+            width: 120px; height: 120px;
             border-radius: 50%; 
             margin: 0 auto 10px;
             position: relative;
@@ -47,20 +47,28 @@
             z-index: 20;
         }
 
-        /* ⭐ Iframe 직접 제어 (꽉 채우기) */
-        iframe {
+        #yt-player {
             width: 200%; height: 200%;
             margin-left: -50%; margin-top: -50%;
-            border: none;
-            pointer-events: auto; /* 클릭 허용 */
+            /* pointer-events: none; <-- 이거 제거! 직접 클릭 허용 */
         }
         
         h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
         h3 { margin: 0 0 5px; font-size: 0.7rem; color: #E16259; }
         
-        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-top: 15px;}
+        .progress-container {
+            background: #ffe3ec; border-radius: 5px; cursor: pointer;
+            margin: 8px 0; height: 4px; width: 100%;
+        }
+        .progress {
+            background-color: #E16259; border-radius: 5px;
+            height: 100%; width: 0%; transition: width 0.1s linear;
+        }
+        
+        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-top: 10px; }
         .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; transition: 0.2s; }
         .btn:hover { color: #E16259; }
+        .btn.active { color: #E16259; }
         .main-controls { display: flex; align-items: center; gap: 15px; }
         .btn-big { font-size: 1.8rem; color: #E16259; }
     </style>
@@ -69,10 +77,16 @@
     <div class="player-container">
         <select id="playlist-dropdown" class="playlist-select"></select>
 
-        <div class="video-wrapper" id="player-mount"></div>
+        <div class="video-wrapper">
+            <div id="yt-player"></div>
+        </div>
         
-        <h2 id="title">Ready to Play</h2>
-        <h3 id="artist">Touch Video or Play</h3>
+        <h2 id="title">Loading...</h2>
+        <h3 id="artist">Touch Video to Play</h3>
+        
+        <div class="progress-container" id="progress-container">
+            <div class="progress" id="progress"></div>
+        </div>
         
         <div class="controls">
             <button class="btn" id="shuffle"><i class="fas fa-random"></i></button>
@@ -86,72 +100,68 @@
     </div>
 
     <script>
-        // ⭐ 유정이의 플리 ID
+        // ⭐ 무조건 되는 'Lofi Girl'로 테스트 먼저!
         const MY_PLAYLISTS = [
-            { name: "🎵 내 최애 플리", id: "PLwNuT9q3Y2siGjjg3D9goxnOVMtDJv69K" }, 
-            { name: "🔥 노동요", id: "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m" }
+            { name: "☕ Lofi Girl (테스트)", id: "PL6NdkXsPL07KN01gH2vucRgQAqd0pDBnM" }, 
+            { name: "🎵 내 최애 플리", id: "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m" }
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
+        let updateTimer;
         let isShuffle = false;
 
         const dropdown = document.getElementById('playlist-dropdown');
         const playBtn = document.getElementById('play_btn');
         const titleEl = document.getElementById('title');
-        const mountPoint = document.getElementById('player-mount');
+        const artistEl = document.getElementById('artist');
+        const progress = document.getElementById('progress');
+        const progressContainer = document.getElementById('progress-container');
 
-        // 드롭다운 채우기
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id; option.text = pl.name; dropdown.appendChild(option);
         });
 
-        // 1. 처음엔 그냥 Iframe을 HTML 문자열로 꽂아버림 (가장 확실한 방법)
-        function createIframe(playlistId) {
-            // 현재 페이지 주소 (Origin) 가져오기
-            const origin = window.location.origin;
-            
-            // Iframe 생성
-            const iframeHTML = `
-                <iframe id="yt-player" 
-                    src="https://www.youtube.com/embed/?listType=playlist&list=${playlistId}&index=0&enablejsapi=1&origin=${origin}&playsinline=1"
-                    allow="autoplay; encrypted-media" 
-                    allowfullscreen>
-                </iframe>
-            `;
-            mountPoint.innerHTML = iframeHTML;
-
-            // API 다시 연결 (버튼 제어를 위해)
-            if(window.YT && window.YT.Player) {
-                new YT.Player('yt-player', {
-                    events: {
-                        'onStateChange': onPlayerStateChange,
-                        'onReady': onPlayerReady,
-                        'onError': onPlayerError
-                    }
-                });
+        dropdown.addEventListener('change', (e) => {
+            currentPlaylistId = e.target.value;
+            if(player && player.loadPlaylist) {
+                player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
             }
-        }
+        });
 
-        // 초기 실행
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-        // API 다운로드 완료되면 플레이어 연결
         function onYouTubeIframeAPIReady() {
-            createIframe(currentPlaylistId);
+            player = new YT.Player('yt-player', {
+                height: '100%', width: '100%',
+                // ⭐⭐⭐ 여기가 핵심! youtube-nocookie 사용 ⭐⭐⭐
+                host: 'https://www.youtube-nocookie.com', 
+                playerVars: {
+                    'listType': 'playlist',
+                    'list': currentPlaylistId,
+                    'playsinline': 1,
+                    'controls': 0, 
+                    'origin': window.location.origin
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
         }
 
-        dropdown.addEventListener('change', (e) => {
-            currentPlaylistId = e.target.value;
-            createIframe(currentPlaylistId);
-        });
+        function onPlayerError(event) {
+            console.log("Error:", event.data);
+            // 에러 나면 다음 곡
+            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 1000);
+        }
 
         function onPlayerReady(event) {
-            player = event.target;
             player.setVolume(100);
             updateTrackInfo();
         }
@@ -159,16 +169,12 @@
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
                 playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                startProgressLoop();
                 updateTrackInfo();
             } else {
                 playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                stopProgressLoop();
             }
-        }
-
-        function onPlayerError(event) {
-            console.log("Error:", event.data);
-            // 에러 나면 다음 곡으로
-            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 1000);
         }
 
         function updateTrackInfo() {
@@ -176,6 +182,7 @@
             const data = player.getVideoData();
             if (data && data.title) {
                 titleEl.innerText = data.title;
+                artistEl.innerText = data.author;
             }
         }
 
@@ -198,6 +205,30 @@
             else document.getElementById('shuffle').classList.remove('active');
         });
 
+        function startProgressLoop() {
+            stopProgressLoop();
+            updateTimer = setInterval(() => {
+                if(!player || !player.getDuration) return;
+                const currentTime = player.getCurrentTime();
+                const duration = player.getDuration();
+                if(duration > 0) {
+                    const percent = (currentTime / duration) * 100;
+                    progress.style.width = `${percent}%`;
+                }
+            }, 500);
+        }
+
+        function stopProgressLoop() {
+            if(updateTimer) clearInterval(updateTimer);
+        }
+
+        progressContainer.addEventListener('click', (e) => {
+            if(!player) return;
+            const width = progressContainer.clientWidth;
+            const clickX = e.offsetX;
+            const duration = player.getDuration();
+            player.seekTo((clickX / width) * duration, true);
+        });
     </script>
 </body>
 </html>
