@@ -23,6 +23,7 @@
             text-align: center;
             border: 2px solid #FFD9E8;
             position: relative;
+            z-index: 10;
         }
 
         .playlist-select {
@@ -32,45 +33,38 @@
             outline: none; cursor: pointer; text-align: center;
         }
         
-        /* ⭐ 앨범 커버 대신 영상을 넣을 틀 (동그라미) */
+        /* 영상 틀 */
         .video-wrapper {
-            width: 120px; height: 120px;
-            border-radius: 50%; /* 동그랗게 */
+            width: 130px; height: 130px; /* 크기 조금 키움 */
+            border-radius: 50%; 
             margin: 0 auto 10px;
             position: relative;
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
             border: 4px solid #FFD9E8; 
-            overflow: hidden; /* 네모난 영상을 동그랗게 자름 */
+            overflow: hidden; 
             background: #000;
-            z-index: 10;
+            z-index: 20; /* 제일 위로 올림 */
         }
 
-        /* 유튜브 플레이어 (확대해서 꽉 차게) */
+        /* ⭐ 유튜브 플레이어 (직접 클릭 가능하게 설정!) */
         #yt-player {
             width: 200%; height: 200%;
             margin-left: -50%; margin-top: -50%;
-            pointer-events: none; /* 클릭은 버튼으로만 하게 막음 */
+            pointer-events: auto; /* ⭐⭐⭐ 핵심: 클릭 허용! */
+            cursor: pointer;
         }
         
         h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
         h3 { margin: 0 0 5px; font-size: 0.7rem; color: #E16259; }
         
-        .progress-container {
-            background: #ffe3ec; border-radius: 5px; cursor: pointer;
-            margin: 8px 0; height: 4px; width: 100%;
-        }
-        .progress {
-            background-color: #E16259; border-radius: 5px;
-            height: 100%; width: 0%; transition: width 0.1s linear;
-        }
-        
-        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; }
+        .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-top: 15px;}
         .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; transition: 0.2s; }
         .btn:hover { color: #E16259; }
-        .btn.active { color: #E16259; }
         .main-controls { display: flex; align-items: center; gap: 15px; }
         .btn-big { font-size: 1.8rem; color: #E16259; }
-        .btn-big:hover { transform: scale(1.1); }
+        
+        /* 안내 문구 */
+        .hint { font-size: 0.6rem; color: #aaa; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -81,18 +75,16 @@
             <div id="yt-player"></div>
         </div>
         
+        <div class="hint">👆 영상을 직접 클릭해보세요!</div>
+
         <h2 id="title">Loading...</h2>
         <h3 id="artist">YouTube</h3>
         
-        <div class="progress-container" id="progress-container">
-            <div class="progress" id="progress"></div>
-        </div>
-        
         <div class="controls">
-            <button class="btn" id="shuffle" title="Random"><i class="fas fa-random"></i></button>
+            <button class="btn" id="shuffle"><i class="fas fa-random"></i></button>
             <div class="main-controls">
                 <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
-                <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
+                <button class="btn btn-big" id="play_icon"><i class="fas fa-play"></i></button>
                 <button class="btn" id="next"><i class="fas fa-forward"></i></button>
             </div>
             <button class="btn" style="cursor: default; color: #FF0000;"><i class="fab fa-youtube"></i></button>
@@ -100,27 +92,21 @@
     </div>
 
     <script>
-        // ⭐ 테스트를 위해 '디즈니 피아노' ID를 먼저 써봐! (이건 무조건 됨)
+        // ⭐ 테스트용 디즈니 ID (이게 되면 유정이 ID 문제임)
         const MY_PLAYLISTS = [
-            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" },
+            { name: "🎹 테스트용 디즈니", id: "PLwNuT9q3Y2siGjjg3D9goxnOVMtDJv69K" }, 
+            { name: "🎵 내 최애 플리", id: "PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m" } // 여기에 유정이 ID 넣어
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
-        let updateTimer;
         let isShuffle = false;
 
         const dropdown = document.getElementById('playlist-dropdown');
-        const playBtn = document.getElementById('play');
-        const prevBtn = document.getElementById('prev');
-        const nextBtn = document.getElementById('next');
-        const shuffleBtn = document.getElementById('shuffle');
         const titleEl = document.getElementById('title');
         const artistEl = document.getElementById('artist');
-        const progress = document.getElementById('progress');
-        const progressContainer = document.getElementById('progress-container');
+        const playIcon = document.getElementById('play_icon');
 
-        // 드롭다운 채우기
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id; option.text = pl.name; dropdown.appendChild(option);
@@ -146,8 +132,7 @@
                     'list': currentPlaylistId,
                     'playsinline': 1,
                     'controls': 0, // 컨트롤바 숨김
-                    'disablekb': 1,
-                    'origin': window.location.origin // ⭐ 중요!
+                    'origin': window.location.origin
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -158,24 +143,28 @@
         }
 
         function onPlayerError(event) {
-            console.log("Error:", event.data);
-            // 에러 나면 1초 뒤 다음 곡
-            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 1000);
+            let msg = "오류 발생 (" + event.data + ")";
+            if(event.data === 150 || event.data === 101) msg = "퍼가기 금지된 영상입니다 (자동 스킵)";
+            else if(event.data === 100) msg = "영상을 찾을 수 없습니다.";
+            
+            console.log(msg);
+            // 에러 시 다음 곡으로
+            setTimeout(() => { if(player) player.nextVideo(); }, 1000);
         }
 
         function onPlayerReady(event) {
+            titleEl.innerText = "Ready!";
+            artistEl.innerText = "Touch Video to Play";
             player.setVolume(100);
             updateTrackInfo();
         }
 
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
-                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                startProgressLoop();
+                playIcon.innerHTML = '<i class="fas fa-pause"></i>';
                 updateTrackInfo();
             } else {
-                playBtn.innerHTML = '<i class="fas fa-play"></i>';
-                stopProgressLoop();
+                playIcon.innerHTML = '<i class="fas fa-play"></i>';
             }
         }
 
@@ -188,48 +177,26 @@
             }
         }
 
-        // 재생/일시정지 토글
-        playBtn.addEventListener('click', () => {
+        // 버튼 기능들
+        document.getElementById('prev').addEventListener('click', () => player && player.previousVideo());
+        document.getElementById('next').addEventListener('click', () => player && player.nextVideo());
+        
+        // 핑크 버튼 눌러도 재생 시도 (하지만 영상 클릭이 더 확실함)
+        playIcon.addEventListener('click', () => {
             if(!player) return;
             const state = player.getPlayerState();
-            if (state == 1) player.pauseVideo();
-            else player.playVideo();
+            if(state == 1) player.pauseVideo(); else player.playVideo();
         });
 
-        prevBtn.addEventListener('click', () => player && player.previousVideo());
-        nextBtn.addEventListener('click', () => player && player.nextVideo());
-
-        shuffleBtn.addEventListener('click', () => {
+        document.getElementById('shuffle').addEventListener('click', () => {
             if(!player) return;
             isShuffle = !isShuffle;
             player.setShuffle(isShuffle);
-            if(isShuffle) shuffleBtn.classList.add('active');
-            else shuffleBtn.classList.remove('active');
-        });
-
-        function startProgressLoop() {
-            stopProgressLoop();
-            updateTimer = setInterval(() => {
-                if(!player || !player.getDuration) return;
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
-                if(duration > 0) {
-                    const percent = (currentTime / duration) * 100;
-                    progress.style.width = `${percent}%`;
-                }
-            }, 500);
-        }
-
-        function stopProgressLoop() {
-            if(updateTimer) clearInterval(updateTimer);
-        }
-
-        progressContainer.addEventListener('click', (e) => {
-            if(!player) return;
-            const width = progressContainer.clientWidth;
-            const clickX = e.offsetX;
-            const duration = player.getDuration();
-            player.seekTo((clickX / width) * duration, true);
+            if(isShuffle) {
+                document.getElementById('shuffle').classList.add('active');
+            } else {
+                document.getElementById('shuffle').classList.remove('active');
+            }
         });
     </script>
 </body>
