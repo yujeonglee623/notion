@@ -130,8 +130,10 @@
                     'listType': 'playlist',
                     'list': currentPlaylistId,
                     'playsinline': 1,
-                    'controls': 0, // 컨트롤바 숨김
-                    'origin': window.location.origin
+                    'controls': 0, 
+                    'disablekb': 1,
+                    // 👇 여기를 이렇게 바꿔봐! (https:// 꼭 붙여서)
+                    'origin': 'https://' + window.location.hostname 
                 },
                 events: {
                     'onReady': onPlayerReady,
