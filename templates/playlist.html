@@ -99,9 +99,9 @@
     <div id="yt-player"></div>
 
     <script>
-        // ⭐⭐⭐ 여기에 유정이의 플레이리스트 ID들을 넣어줘! ⭐⭐⭐
+        // ⭐ 유정이의 플레이리스트 (여기에 ID 잘 넣었지?)
         const MY_PLAYLISTS = [
-            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" }
+            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" }, 
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
@@ -121,7 +121,7 @@
         const progress = document.getElementById('progress');
         const progressContainer = document.getElementById('progress-container');
 
-        // 드롭다운 메뉴 채우기
+        // 드롭다운 채우기
         MY_PLAYLISTS.forEach((pl) => {
             const option = document.createElement('option');
             option.value = pl.id;
@@ -132,11 +132,11 @@
         dropdown.addEventListener('change', (e) => {
             currentPlaylistId = e.target.value;
             if(player && player.loadPlaylist) {
-                player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
-                setTimeout(() => {
-                    player.setShuffle(isShuffle);
-                    if(isShuffle) player.nextVideo();
-                }, 1000);
+                // 플레이리스트 변경 시
+                player.loadPlaylist({
+                    list: currentPlaylistId,
+                    listType: 'playlist'
+                });
             }
         });
 
@@ -151,13 +151,36 @@
                 playerVars: {
                     'listType': 'playlist',
                     'list': currentPlaylistId,
-                    'playsinline': 1, 'controls': 0, 'disablekb': 1
+                    'playsinline': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'autoplay': 0,
+                    'origin': window.location.origin // ⭐ 핵심 수정! 내 주소 알려주기
                 },
-                events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError // ⭐ 에러 잡기
+                }
             });
         }
 
-        function onPlayerReady(event) { setTimeout(updateTrackInfo, 1000); }
+        // ⭐ 에러 발생 시 알려주는 함수
+        function onPlayerError(event) {
+            console.error("YouTube Player Error:", event.data);
+            if(event.data === 150 || event.data === 101) {
+                alert("이 영상은 유튜브 정책상 외부 재생이 금지되어 있어요 ㅠㅠ 다음 곡으로 넘어갑니다!");
+                nextBtn.click();
+            } else if (event.data === 100) {
+                alert("영상을 찾을 수 없어요 (삭제된 영상일 수도!)");
+                nextBtn.click();
+            }
+        }
+
+        function onPlayerReady(event) {
+            // 로딩되면 1초 뒤 정보 업데이트
+            setTimeout(updateTrackInfo, 1000);
+        }
 
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
@@ -177,6 +200,7 @@
         function updateTrackInfo() {
             if (!player || !player.getVideoData) return;
             const data = player.getVideoData();
+            // 제목이 없거나 이상하면 건너뛰기
             if (data && data.title) {
                 titleEl.innerText = data.title;
                 artistEl.innerText = data.author;
@@ -186,16 +210,24 @@
         }
 
         playBtn.addEventListener('click', () => {
+            if(!player) return;
             const state = player.getPlayerState();
-            if (state == 1) player.pauseVideo(); else player.playVideo();
+            if (state == 1) player.pauseVideo();
+            else player.playVideo();
         });
-        prevBtn.addEventListener('click', () => player.previousVideo());
-        nextBtn.addEventListener('click', () => player.nextVideo());
+
+        prevBtn.addEventListener('click', () => player && player.previousVideo());
+        nextBtn.addEventListener('click', () => player && player.nextVideo());
+
         shuffleBtn.addEventListener('click', () => {
+            if(!player) return;
             isShuffle = !isShuffle;
             player.setShuffle(isShuffle);
-            if(isShuffle) shuffleBtn.classList.add('active');
-            else shuffleBtn.classList.remove('active');
+            if(isShuffle) {
+                shuffleBtn.classList.add('active');
+            } else {
+                shuffleBtn.classList.remove('active');
+            }
         });
 
         function startProgressLoop() {
@@ -210,8 +242,13 @@
                 }
             }, 500);
         }
-        function stopProgressLoop() { if(updateTimer) clearInterval(updateTimer); }
+
+        function stopProgressLoop() {
+            if(updateTimer) clearInterval(updateTimer);
+        }
+
         progressContainer.addEventListener('click', (e) => {
+            if(!player) return;
             const width = progressContainer.clientWidth;
             const clickX = e.offsetX;
             const duration = player.getDuration();
