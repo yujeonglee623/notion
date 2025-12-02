@@ -3,16 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YuJeong Playlist</title>
+    <title>Debug Player</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             margin: 0; padding: 0; height: 100vh;
-            display: flex; justify-content: center; align-items: center;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
             background: transparent;
             font-family: 'Segoe UI', sans-serif;
         }
         
+        /* 상태 로그 창 (디버깅용) */
+        #log-box {
+            width: 240px; height: 60px;
+            background: #333; color: #0f0;
+            font-size: 0.7rem; font-family: monospace;
+            overflow-y: auto; padding: 5px;
+            margin-bottom: 10px; border-radius: 8px;
+            text-align: left;
+        }
+
         .player-container {
             width: 240px; 
             background: #ffffff;
@@ -22,63 +32,51 @@
             text-align: center;
             border: 2px solid #FFD9E8;
             position: relative;
-        }
-
-        .playlist-select {
-            width: 100%; padding: 5px; margin-bottom: 15px;
-            border: 1px solid #FFD9E8; border-radius: 8px;
-            background: white; color: #333; font-size: 0.8rem;
-            outline: none; cursor: pointer; text-align: center;
-        }
-        
-        /* ⭐ 여기가 핵심! 앨범 커버 대신 영상을 넣을 틀 */
-        .video-wrapper {
-            width: 120px; height: 120px;
-            border-radius: 50%; /* 동그랗게 */
-            margin: 0 auto 10px;
-            position: relative;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-            border: 4px solid #FFD9E8; 
-            overflow: hidden; /* 튀어나온 영상 자르기 */
-            background: #000; /* 로딩 전엔 검은색 */
             z-index: 10;
         }
 
-        /* 유튜브 플레이어가 이 안에서 꽉 차게 */
-        #yt-player {
-            width: 200%; height: 200%; /* 확대해서 가운데 맞춤 */
-            margin-left: -50%; margin-top: -50%; /* 중앙 정렬 보정 */
-            border: none;
+        .playlist-select {
+            width: 100%; padding: 5px; margin-bottom: 10px;
+            border: 1px solid #FFD9E8; border-radius: 8px;
+            outline: none; text-align: center;
         }
         
+        /* 영상이 나오는 화면 */
+        .video-wrapper {
+            width: 120px; height: 120px;
+            border-radius: 50%; margin: 0 auto 5px;
+            position: relative;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border: 4px solid #FFD9E8; 
+            overflow: hidden; 
+            background: #000;
+        }
+
+        /* 유튜브 플레이어 (숨기지 않음! 보여야 재생됨) */
+        #yt-player {
+            width: 200%; height: 200%;
+            margin-left: -50%; margin-top: -50%;
+        }
+        
+        /* 투명 클릭 막 (이걸 눌러서 재생 유도) */
+        .click-shield {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            cursor: pointer; z-index: 20;
+        }
+
         h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
         h3 { margin: 0 0 5px; font-size: 0.7rem; color: #E16259; }
         
-        .progress-container {
-            background: #ffe3ec; border-radius: 5px; cursor: pointer;
-            margin: 8px 0; height: 4px; width: 100%;
-        }
-        .progress {
-            background-color: #E16259; border-radius: 5px;
-            height: 100%; width: 0%; transition: width 0.1s linear;
-        }
-        
         .controls { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; }
-        .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; transition: 0.2s; }
+        .btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 0.9rem; }
         .btn:hover { color: #E16259; }
-        .btn.active { color: #E16259; }
         .main-controls { display: flex; align-items: center; gap: 15px; }
         .btn-big { font-size: 1.8rem; color: #E16259; }
-        .btn-big:hover { transform: scale(1.1); }
-
-        /* 클릭 방지 (영상 클릭해서 유튜브로 넘어가는 거 방지) */
-        .click-shield {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 20; cursor: pointer;
-        }
     </style>
 </head>
 <body>
+    <div id="log-box">Initializing...</div>
+
     <div class="player-container">
         <select id="playlist-dropdown" class="playlist-select"></select>
 
@@ -90,155 +88,132 @@
         <h2 id="title">Loading...</h2>
         <h3 id="artist">YouTube</h3>
         
-        <div class="progress-container" id="progress-container">
-            <div class="progress" id="progress"></div>
-        </div>
-        
         <div class="controls">
-            <button class="btn" id="shuffle" title="Random"><i class="fas fa-random"></i></button>
+            <button class="btn" id="shuffle"><i class="fas fa-random"></i></button>
             <div class="main-controls">
                 <button class="btn" id="prev"><i class="fas fa-backward"></i></button>
                 <button class="btn btn-big" id="play"><i class="fas fa-play"></i></button>
                 <button class="btn" id="next"><i class="fas fa-forward"></i></button>
             </div>
-            <button class="btn" style="cursor: default; color: #FF0000;"><i class="fab fa-youtube"></i></button>
+            <button class="btn" style="cursor: default; color: red;"><i class="fab fa-youtube"></i></button>
         </div>
     </div>
 
     <script>
         const MY_PLAYLISTS = [
-            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" },
+            { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" }
         ];
 
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
-        let updateTimer;
-        let isShuffle = false;
+        
+        const logBox = document.getElementById('log-box');
+        function log(msg) {
+            logBox.innerHTML += `<div>> ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+            console.log(msg);
+        }
 
         const dropdown = document.getElementById('playlist-dropdown');
-        const playBtn = document.getElementById('play');
-        const prevBtn = document.getElementById('prev');
-        const nextBtn = document.getElementById('next');
-        const shuffleBtn = document.getElementById('shuffle');
-        const titleEl = document.getElementById('title');
-        const artistEl = document.getElementById('artist');
-        const progress = document.getElementById('progress');
-        const progressContainer = document.getElementById('progress-container');
-        const videoClickArea = document.getElementById('video-click-area');
-
-        MY_PLAYLISTS.forEach((pl) => {
+        MY_PLAYLISTS.forEach(pl => {
             const option = document.createElement('option');
-            option.value = pl.id;
-            option.text = pl.name;
-            dropdown.appendChild(option);
+            option.value = pl.id; option.text = pl.name; dropdown.appendChild(option);
         });
 
-        dropdown.addEventListener('change', (e) => {
-            currentPlaylistId = e.target.value;
-            if(player && player.loadPlaylist) {
-                player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
-            }
-        });
-
+        // 1. 유튜브 API 스크립트 로드
+        log("Loading YouTube API...");
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
+        // 2. API 준비 완료 시 호출
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('yt-player', {
-                playerVars: {
-                    'listType': 'playlist',
-                    'list': currentPlaylistId,
-                    'playsinline': 1,
-                    'controls': 0, // 컨트롤바 숨김
-                    'disablekb': 1,
-                    'origin': window.location.origin
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
-            });
-        }
-
-        function onPlayerError(event) {
-            console.log("Error:", event.data);
-            setTimeout(() => { if(player && player.nextVideo) player.nextVideo(); }, 1000);
+            log("API Ready. Creating Player...");
+            try {
+                player = new YT.Player('yt-player', {
+                    playerVars: {
+                        'listType': 'playlist',
+                        'list': currentPlaylistId,
+                        'playsinline': 1,
+                        'controls': 0,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange,
+                        'onError': onPlayerError
+                    }
+                });
+            } catch(e) {
+                log("Error creating player: " + e.message);
+            }
         }
 
         function onPlayerReady(event) {
-            player.setVolume(100);
-            setTimeout(updateTrackInfo, 1000);
+            log("Player Ready! Status: " + event.target.getPlayerState());
+            document.getElementById('title').innerText = "Ready! Touch Circle";
+            updateTrackInfo();
         }
 
         function onPlayerStateChange(event) {
+            log("State Changed: " + event.data);
             if (event.data == YT.PlayerState.PLAYING) {
-                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                startProgressLoop();
+                log("Playing...");
+                document.getElementById('play').innerHTML = '<i class="fas fa-pause"></i>';
                 updateTrackInfo();
             } else {
-                playBtn.innerHTML = '<i class="fas fa-play"></i>';
-                stopProgressLoop();
+                document.getElementById('play').innerHTML = '<i class="fas fa-play"></i>';
             }
+        }
+
+        function onPlayerError(event) {
+            log("🚨 ERROR Code: " + event.data);
+            if(event.data == 150 || event.data == 101) log("퍼가기 금지된 영상입니다.");
+            else if(event.data == 100) log("영상 없음/삭제됨");
+            
+            // 에러 시 자동 스킵 시도
+            log("Attempting to skip...");
+            if(player && player.nextVideo) player.nextVideo();
         }
 
         function updateTrackInfo() {
             if (!player || !player.getVideoData) return;
             const data = player.getVideoData();
             if (data && data.title) {
-                titleEl.innerText = data.title;
-                artistEl.innerText = data.author;
+                document.getElementById('title').innerText = data.title;
+                document.getElementById('artist').innerText = data.author;
             }
         }
 
-        // 재생/일시정지 토글 함수
-        function togglePlay() {
-            if(!player) return;
+        // 재생 토글 (가운데 동그라미 클릭 시)
+        document.getElementById('video-click-area').addEventListener('click', () => {
+            log("Circle Clicked.");
+            if(!player) return log("Player not loaded yet");
+            
             const state = player.getPlayerState();
+            log("Current State: " + state);
+            
             if (state == 1) player.pauseVideo();
             else player.playVideo();
-        }
-
-        playBtn.addEventListener('click', togglePlay);
-        videoClickArea.addEventListener('click', togglePlay); // 영상 눌러도 재생/멈춤
-
-        prevBtn.addEventListener('click', () => player && player.previousVideo());
-        nextBtn.addEventListener('click', () => player && player.nextVideo());
-
-        shuffleBtn.addEventListener('click', () => {
-            if(!player) return;
-            isShuffle = !isShuffle;
-            player.setShuffle(isShuffle);
-            if(isShuffle) shuffleBtn.classList.add('active');
-            else shuffleBtn.classList.remove('active');
         });
 
-        function startProgressLoop() {
-            stopProgressLoop();
-            updateTimer = setInterval(() => {
-                if(!player || !player.getDuration) return;
-                const currentTime = player.getCurrentTime();
-                const duration = player.getDuration();
-                if(duration > 0) {
-                    const percent = (currentTime / duration) * 100;
-                    progress.style.width = `${percent}%`;
-                }
-            }, 500);
-        }
-
-        function stopProgressLoop() {
-            if(updateTimer) clearInterval(updateTimer);
-        }
-
-        progressContainer.addEventListener('click', (e) => {
-            if(!player) return;
-            const width = progressContainer.clientWidth;
-            const clickX = e.offsetX;
-            const duration = player.getDuration();
-            player.seekTo((clickX / width) * duration, true);
+        // 버튼 클릭
+        document.getElementById('play').addEventListener('click', () => {
+            log("Play Button Clicked.");
+            document.getElementById('video-click-area').click(); // 동그라미 클릭과 동일하게 처리
         });
+
+        document.getElementById('next').addEventListener('click', () => {
+            log("Next Clicked");
+            player.nextVideo();
+        });
+        
+        document.getElementById('prev').addEventListener('click', () => {
+            log("Prev Clicked");
+            player.previousVideo();
+        });
+
     </script>
 </body>
 </html>
