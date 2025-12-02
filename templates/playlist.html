@@ -11,6 +11,7 @@
             display: flex; justify-content: center; align-items: center;
             background: transparent;
             font-family: 'Segoe UI', sans-serif;
+            overflow: hidden; /* 스크롤 방지 */
         }
         
         .player-container {
@@ -22,19 +23,19 @@
             text-align: center;
             border: 2px solid #FFD9E8;
             position: relative;
-            z-index: 10;
-            overflow: hidden; /* 내부 요소 넘치면 숨김 */
+            z-index: 10; /* 유튜브보다 앞에 있어야 함 */
         }
 
         /* 시작 오버레이 */
         #start-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             z-index: 100;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             cursor: pointer;
+            border-radius: 14px;
         }
         #start-overlay i { font-size: 3rem; color: #E16259; margin-bottom: 10px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
@@ -62,7 +63,6 @@
         h2 { margin: 5px 0 0; font-size: 0.85rem; color: #333; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.2em; }
         h3 { margin: 0 0 5px; font-size: 0.7rem; color: #E16259; }
         
-        /* 상태 메시지 (디버깅용) */
         #status-msg { font-size: 0.6rem; color: #aaa; margin-bottom: 10px; height: 10px; }
 
         .progress-container {
@@ -82,12 +82,15 @@
         .btn-big { font-size: 1.8rem; color: #E16259; }
         .btn-big:hover { transform: scale(1.1); }
 
-        /* ⭐ 유튜브 플레이어 (숨기지 않고 1px로 만듦) */
+        /* ⭐ 유튜브 플레이어 숨기기 전략 변경 (크기 키움!) */
         #yt-player-box {
-            width: 1px; height: 1px; 
-            overflow: hidden;
-            opacity: 0.01;
-            margin: 0 auto;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%); /* 정중앙 */
+            width: 200px; height: 200px; /* ⭐ 충분한 크기 확보 */
+            opacity: 0.01; /* 눈에만 안 보이게 */
+            z-index: -1; /* 위젯 뒤로 숨김 */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -106,7 +109,9 @@
         
         <h2 id="title">Loading...</h2>
         <h3 id="artist">YouTube</h3>
-        <div id="status-msg">Initializing...</div> <div class="progress-container" id="progress-container">
+        <div id="status-msg">Initializing...</div>
+        
+        <div class="progress-container" id="progress-container">
             <div class="progress" id="progress"></div>
         </div>
         
@@ -126,7 +131,6 @@
     </div>
 
     <script>
-        // ⭐ 유정이 플리 ID
         const MY_PLAYLISTS = [
             { name: "🎵 Liked", id: "PLRt0gIuMcszKrYLPxNQJUK3u0eHU6Ipla" },
         ];
@@ -134,6 +138,7 @@
         let currentPlaylistId = MY_PLAYLISTS[0].id;
         let player;
         let updateTimer;
+        let bufferTimeout; // 버퍼링 감시 타이머
         let isShuffle = false;
         let isReady = false;
 
@@ -153,7 +158,6 @@
 
         function setStatus(msg) {
             statusMsg.innerText = msg;
-            console.log("[Player Status]", msg);
         }
 
         MY_PLAYLISTS.forEach((pl) => {
@@ -167,17 +171,20 @@
             if (isReady && player) {
                 setStatus("Starting...");
                 player.playVideo();
-                startOverlay.style.opacity = '0';
-                setTimeout(() => startOverlay.style.display = 'none', 300);
+                // 3초 뒤에 오버레이 사라지게 (재생 확인 할 시간 줌)
+                setTimeout(() => {
+                    startOverlay.style.opacity = '0';
+                    setTimeout(() => startOverlay.style.display = 'none', 300);
+                }, 500);
             } else {
-                alert("아직 로딩 중이에요! 잠시만 기다려주세요.");
+                alert("로딩 중입니다. 잠시만요!");
             }
         });
 
         dropdown.addEventListener('change', (e) => {
             currentPlaylistId = e.target.value;
             if(player && player.loadPlaylist) {
-                setStatus("Changing Playlist...");
+                setStatus("Loading Playlist...");
                 player.loadPlaylist({ list: currentPlaylistId, listType: 'playlist' });
             }
         });
@@ -209,6 +216,7 @@
 
         function onPlayerError(event) {
             setStatus("Error: " + event.data);
+            // 에러 나면 1초 뒤 다음 곡
             setTimeout(() => { 
                 setStatus("Skipping error video...");
                 if(player) player.nextVideo(); 
@@ -218,28 +226,37 @@
         function onPlayerReady(event) {
             isReady = true;
             setStatus("Ready! Click to Start");
-            titleEl.innerText = "Ready to Play!";
-            artistEl.innerText = "Click Overlay";
-            
-            // 첫 곡 정보 미리 로드
+            titleEl.innerText = "Click to Start";
+            artistEl.innerText = "Youtube Music";
+            player.setVolume(100);
             setTimeout(updateTrackInfo, 1000);
         }
 
         function onPlayerStateChange(event) {
+            // 버퍼링 체크 타이머 해제
+            if (bufferTimeout) clearTimeout(bufferTimeout);
+
             if (event.data == YT.PlayerState.PLAYING) {
                 setStatus("Playing 🎵");
-                startOverlay.style.display = 'none'; // 재생되면 오버레이 확실히 제거
                 coverContainer.classList.add('rotate');
                 playBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 startProgressLoop();
                 updateTrackInfo();
-            } else if (event.data == YT.PlayerState.PAUSED) {
+                startOverlay.style.display = 'none'; // 재생되면 오버레이 확실히 제거
+            } 
+            else if (event.data == YT.PlayerState.PAUSED) {
                 setStatus("Paused ⏸️");
                 coverContainer.classList.remove('rotate');
                 playBtn.innerHTML = '<i class="fas fa-play"></i>';
                 stopProgressLoop();
-            } else if (event.data == YT.PlayerState.BUFFERING) {
+            } 
+            else if (event.data == YT.PlayerState.BUFFERING) {
                 setStatus("Buffering...");
+                // ⭐ 버퍼링이 5초 이상 지속되면 강제 스킵!
+                bufferTimeout = setTimeout(() => {
+                    setStatus("Buffering too long... Skipping");
+                    player.nextVideo();
+                }, 5000);
             }
         }
 
