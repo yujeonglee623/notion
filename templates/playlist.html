@@ -1,24 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YuJeong Apple Music</title>
+    <style>
+        body {
+            margin: 0; padding: 0; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+        }
+        
+        .container {
+            width: 300px; /* 애플뮤직은 좀 넓어야 예쁨 */
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 10px;
+            box-shadow: 0 5px 20px rgba(225, 98, 89, 0.15);
+            text-align: center;
+            border: 2px solid #FFD9E8; /* 핑크 테두리 */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 플리 선택 메뉴 */
+        .playlist-select {
+            width: 100%; padding: 8px;
+            border: 1px solid #FFD9E8; border-radius: 8px;
+            background: white; color: #333; font-size: 0.8rem;
+            outline: none; cursor: pointer; text-align: center;
+            font-weight: bold;
+        }
+        .playlist-select:hover { background-color: #fff0f5; }
+
+        /* 애플뮤직 아이프레임 */
+        iframe {
+            width: 100%;
+            height: 450px; /* 목록이 보이게 길게 */
+            border: none;
+            border-radius: 12px;
+            background: transparent;
+        }
+    </style>
+</head>
 <body>
-    <h3 style="color: red;">👇 이게 나오나요?</h3>
-    
-    <iframe width="300" height="200" 
-        src="https://www.youtube.com/embed/videoseries?list=PLwNuT9q3Y2siGjjg3D9goxnOVMtDJv69K" 
-        frameborder="0" 
-        allow="autoplay; encrypted-media" 
-        allowfullscreen>
-    </iframe>
 
-    <hr>
+    <div class="container">
+        <select id="playlist-dropdown" class="playlist-select"></select>
+        
+        <iframe id="apple-player" allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"></iframe>
+    </div>
 
-    <h3 style="color: blue;">👇 유정이 플리 테스트</h3>
-    <iframe width="300" height="200" 
-        src="https://youtube.com/playlist?list=PLLcvTQNYJZYjSwoUIrYy8DIvChorIdTI_&si=nXUJAY6g5_2ASZ8X" 
-        frameborder="0" 
-        allow="autoplay; encrypted-media" 
-        allowfullscreen>
-    </iframe>
+    <script>
+        // ⭐ 유정이의 애플뮤직 플리 링크들!
+        // 링크 찾는 법: 애플뮤직 앱 -> 플리 -> 점 3개 -> 공유 -> 링크 복사
+        // 예: https://music.apple.com/kr/playlist/플리이름/pl.u-xyz...
+        
+        const MY_PLAYLISTS = [
+            { 
+                name: "🎵 내 최애 플리", 
+                url: "https://music.apple.com/kr/playlist/todays-hits/pl.f4d106fed2bd41149aaacabb233eb5eb" 
+            }, 
+            { 
+                name: "☕ 스타벅스 매장 음악", 
+                url: "https://music.apple.com/kr/playlist/starbucks-coffeehouse-pop/pl.u-V9D7mXGt316D1" 
+            },
+            { 
+                name: "🎹 집중할 때 듣는 피아노", 
+                url: "https://music.apple.com/kr/playlist/piano-chill/pl.2bb1f528792b49868618f2d4994df56b" 
+            }
+        ];
 
+        const dropdown = document.getElementById('playlist-dropdown');
+        const player = document.getElementById('apple-player');
+
+        // 1. 드롭다운 채우기
+        MY_PLAYLISTS.forEach((pl) => {
+            const option = document.createElement('option');
+            option.value = pl.url;
+            option.text = pl.name;
+            dropdown.appendChild(option);
+        });
+
+        // 2. 링크를 '임베드용 링크'로 변환하는 함수
+        function getEmbedUrl(url) {
+            // music.apple.com -> embed.music.apple.com 으로 바꿔야 함
+            return url.replace('music.apple.com', 'embed.music.apple.com');
+        }
+
+        // 3. 초기 실행 (첫 번째 플리 재생)
+        player.src = getEmbedUrl(MY_PLAYLISTS[0].url);
+
+        // 4. 선택 변경 시 실행
+        dropdown.addEventListener('change', (e) => {
+            player.src = getEmbedUrl(e.target.value);
+        });
+    </script>
 </body>
 </html>
