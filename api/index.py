@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, render_template, make_response
 import requests
 import os
 
-# 템플릿과 스태틱 폴더 위치 지정
+# templates 폴더와 static 폴더 위치 지정
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
@@ -14,41 +14,47 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# ⭐⭐⭐ [핵심] 모든 응답에 강제로 '문 열어' 헤더를 붙이는 마법의 코드
-@app.after_request
-def add_header(response):
-    # 노션이 내 사이트를 액자(iframe)에 넣을 수 있게 허락함
-    response.headers['Content-Security-Policy'] = "frame-ancestors https://www.notion.so https://notion.so *;"
-    # 일부 브라우저 호환성을 위해 추가
-    response.headers['X-Frame-Options'] = 'ALLOWALL' 
+# 공통 헤더 설정 함수 (노션 임베드 허용)
+def allow_iframe(content):
+    response = make_response(content)
+    response.headers['X-Frame-Options'] = 'ALLOWALL'
+    response.headers['Content-Security-Policy'] = "frame-ancestors *"
     return response
 
-# 1. 캘린더 페이지 (기본 주소)
+# ==========================================
+# 🌐 화면 보여주는 라우트 (페이지)
+# ==========================================
+
+# 1. 캘린더 (기본 주소 / )
 @app.route('/')
 def calendar_page():
-    return render_template('calendar.html')
+    return allow_iframe(render_template('calendar.html'))
 
-# 2. 리스트 페이지
+# 2. 리스트 ( /list )
 @app.route('/list')
 def list_page():
-    return render_template('list.html')
+    return allow_iframe(render_template('list.html'))
 
-# 3. 음악 페이지
+# 3. 음악 플레이어 ( /music )
 @app.route('/music')
 def music_page():
-    return render_template('music.html')
+    return allow_iframe(render_template('music.html'))
 
-# 4. ⭐ 디데이 페이지
+# 4. 디데이 ( /dday )
 @app.route('/dday')
 def dday_page():
     return allow_iframe(render_template('dday.html'))
 
-# 5. ⭐ 유튜브 플레이리스트
+# 5. ⭐ 유튜브 플레이리스트 ( /playlist ) - 새로 추가됨!
 @app.route('/playlist')
 def playlist_page():
     return allow_iframe(render_template('playlist.html'))
 
-# --- API (데이터 통신) ---
+
+# ==========================================
+# 📡 데이터 통신 API
+# ==========================================
+
 @app.route('/api/get_tasks', methods=['GET'])
 def get_tasks():
     if not NOTION_TOKEN or not DATABASE_ID: return jsonify({"error": "Env Var Error"}), 500
@@ -89,5 +95,3 @@ def update_task():
 
 if __name__ == '__main__':
     app.run()
-
-
