@@ -59,17 +59,6 @@ def mandalart_page():
     return allow_iframe(render_template('mandalart.html'))
 
 # 7. 날씨 위젯 페이지 ( /weather )
-# ... (맨 위 import 부분에 datetime 있는지 확인!) ...
-from flask import Flask, jsonify, request, render_template, make_response
-import requests
-import os
-from datetime import datetime # ⭐ 이거 꼭 있어야 해!
-
-# ... (중간 코드들은 그대로 유지) ...
-
-# ==========================================
-# 🌤️ 날씨 데이터 API (2.5 버전 - 완전 무료!)
-# ==========================================
 @app.route('/api/get_weather', methods=['GET'])
 def get_weather():
     try:
@@ -239,5 +228,6 @@ def get_mandalart():
 
 if __name__ == '__main__':
     app.run()
+
 
 
