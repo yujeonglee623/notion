@@ -59,11 +59,17 @@ def mandalart_page():
     return allow_iframe(render_template('mandalart.html'))
 
 # 7. 날씨 위젯 페이지 ( /weather )
-@app.route('/weather')
-def weather_page():
-    return allow_iframe(render_template('weather.html'))
+# ... (맨 위 import 부분에 datetime 있는지 확인!) ...
+from flask import Flask, jsonify, request, render_template, make_response
+import requests
+import os
+from datetime import datetime # ⭐ 이거 꼭 있어야 해!
 
-# 날씨 데이터 가져오기 API
+# ... (중간 코드들은 그대로 유지) ...
+
+# ==========================================
+# 🌤️ 날씨 데이터 API (2.5 버전 - 완전 무료!)
+# ==========================================
 @app.route('/api/get_weather', methods=['GET'])
 def get_weather():
     try:
@@ -72,40 +78,51 @@ def get_weather():
         lon = os.environ.get("LON")
 
         if not api_key or not lat or not lon:
-             return jsonify({"error": "환경변수(OWM_API_KEY, LAT, LON)가 설정되지 않았습니다."}), 500
+             return jsonify({"error": "환경변수(OWM_API_KEY, LAT, LON) 미설정"}), 500
 
-        # OpenWeatherMap One Call API 호출 (현재, 일일, 시간별 데이터 모두 포함)
-        url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude=minutely,alerts&units=metric&lang=kr&appid={api_key}"
+        # 1. 현재 날씨 가져오기 (Current Weather Data 2.5)
+        current_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&lang=kr&appid={api_key}"
+        res_cur = requests.get(current_url).json()
+
+        # 2. 5일/3시간 예보 가져오기 (5 Day / 3 Hour Forecast 2.5)
+        forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&units=metric&lang=kr&appid={api_key}"
+        res_for = requests.get(forecast_url).json()
+
+        # 에러 체크 (200 아니면 에러)
+        if str(res_cur.get("cod")) != "200":
+             return jsonify({"error": f"API Error: {res_cur.get('message')}"}), 500
+
+        # 3. 데이터 가공하기
         
-        response = requests.get(url)
-        data = response.json()
+        # 오늘 최고/최저 기온 계산 (향후 24시간 예보 데이터 8개 기준)
+        temps = [item['main']['temp'] for item in res_for['list'][:8]]
+        today_high = max(temps)
+        today_low = min(temps)
 
-        if response.status_code != 200:
-             return jsonify({"error": f"날씨 API 오류: {data.get('message')}"}), response.status_code
-
-        # 필요한 데이터만 정리해서 보내기
         weather_data = {
             "current": {
-                "temp": round(data["current"]["temp"]),
-                "desc": data["current"]["weather"][0]["description"],
-                "icon": data["current"]["weather"][0]["icon"],
-                "code": data["current"]["weather"][0]["id"], # 날씨 상태 코드 (배경화면용)
-                "high": round(data["daily"][0]["temp"]["max"]), # 오늘 최고
-                "low": round(data["daily"][0]["temp"]["min"])   # 오늘 최저
+                "temp": round(res_cur["main"]["temp"]),
+                "desc": res_cur["weather"][0]["description"],
+                "icon": res_cur["weather"][0]["icon"],
+                "code": res_cur["weather"][0]["id"],
+                "high": round(today_high),
+                "low": round(today_low)
             },
-            # 향후 12시간 데이터만 추림
             "hourly": []
         }
 
-        for i in range(1, 13): # 1시간 뒤부터 12시간 뒤까지
-            hour_data = data["hourly"][i]
+        # 3시간 간격 예보 (5개 = 15시간 뒤까지)
+        for item in res_for['list'][:5]:
+            # 시간 변환 (UTC -> 한국시간 9시간 보정 필요할 수 있으나, 보통 OWM은 UTC로 줌)
+            # 여기서는 간단히 timestamp를 변환
+            dt_object = datetime.fromtimestamp(item["dt"])
+            time_str = dt_object.strftime("%p %I시").replace("AM", "오전").replace("PM", "오후")
+            
             weather_data["hourly"].append({
-                # 시간을 "오후 3시" 형태로 변환 (UTC 기준이라 9시간 더해줌 - 한국 기준)
-                # 실제 서버 시간대에 따라 다를 수 있으나 Vercel 기본 기준으로 계산
-                 "time": (datetime.utcfromtimestamp(hour_data["dt"]) + timedelta(hours=9)).strftime("%p %I시").replace("AM", "오전").replace("PM", "오후"),
-                 "temp": round(hour_data["temp"]),
-                 "icon": hour_data["weather"][0]["icon"],
-                 "pop": round(hour_data["pop"] * 100) # 강수확률 (0~1 -> 0~100%)
+                "time": time_str,
+                "temp": round(item["main"]["temp"]),
+                "icon": item["weather"][0]["icon"],
+                "pop": round(item.get("pop", 0) * 100) # 강수확률
             })
             
         return jsonify(weather_data)
@@ -222,4 +239,5 @@ def get_mandalart():
 
 if __name__ == '__main__':
     app.run()
+
 
