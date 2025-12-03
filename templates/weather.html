@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YuJeong Weather</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0; padding: 0; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            background-color: #333; /* 로딩 전 배경색 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: white; overflow: hidden;
+        }
+        
+        /* 배경 이미지 레이어 */
+        #bg-image {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            z-index: -2; transition: background-image 1s ease-in-out;
+        }
+        /* 배경 어둡게 까는 레이어 (글씨 잘 보이게) */
+        #bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); z-index: -1;
+        }
+
+        .container {
+            width: 90%; max-width: 400px;
+            /* 글래스모피즘 (유리 효과) */
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 25px; text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 현재 날씨 섹션 */
+        .current-weather { margin-bottom: 20px; }
+        .temp-main { font-size: 3.5rem; font-weight: bold; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .desc-main { font-size: 1.1rem; margin: 5px 0; text-transform: capitalize; }
+        .high-low { font-size: 0.9rem; opacity: 0.9; }
+
+        /* 시간별 날씨 섹션 (가로 스크롤) */
+        .hourly-container {
+            display: flex; overflow-x: auto; gap: 15px;
+            padding-bottom: 10px; /* 스크롤바 공간 */
+            scrollbar-width: none; /* 파이어폭스 스크롤바 숨김 */
+        }
+        .hourly-container::-webkit-scrollbar { display: none; /* 크롬 스크롤바 숨김 */ }
+        
+        .hourly-item {
+            display: flex; flex-direction: column; align-items: center;
+            min-width: 60px; font-size: 0.8rem;
+        }
+        .hourly-time { opacity: 0.8; margin-bottom: 5px; white-space: nowrap; }
+        .hourly-icon { width: 40px; height: 40px; }
+        .hourly-temp { font-weight: bold; font-size: 1rem; margin: 5px 0; }
+        .hourly-pop { color: #A2D2FF; font-size: 0.75rem; display: flex; align-items: center; }
+        .hourly-pop i { margin-right: 3px; font-size: 0.6rem; }
+
+        .loader { position: absolute; top:50%; left:50%; transform:translate(-50%, -50%); }
+    </style>
+</head>
+<body>
+    <div id="bg-image"></div>
+    <div id="bg-overlay"></div>
+
+    <div class="container" id="weather-container" style="display: none;">
+        <div class="current-weather">
+            <h1 class="temp-main" id="current-temp">--°</h1>
+            <p class="desc-main" id="current-desc">Loading...</p>
+            <p class="high-low">
+                최고: <span id="today-high">--</span>° / 최저: <span id="today-low">--</span>°
+            </p>
+        </div>
+        
+        <hr style="border: none; height: 1px; background: rgba(255,255,255,0.3); margin: 20px 0;">
+        
+        <div class="hourly-container" id="hourly-list">
+            </div>
+    </div>
+
+    <div class="loader" id="loader">날씨 불러오는 중... 🌤️</div>
+
+    <script>
+        const weatherContainer = document.getElementById('weather-container');
+        const loader = document.getElementById('loader');
+        const bgImage = document.getElementById('bg-image');
+
+        async function fetchWeather() {
+            try {
+                const res = await fetch('/api/get_weather');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                renderWeather(data);
+                loader.style.display = 'none';
+                weatherContainer.style.display = 'block';
+            } catch (err) {
+                loader.innerHTML = `🚨 Error: ${err.message}`;
+                console.error(err);
+            }
+        }
+
+        function renderWeather(data) {
+            // 1. 현재 날씨 정보 채우기
+            document.getElementById('current-temp').innerText = `${data.current.temp}°`;
+            document.getElementById('current-desc').innerText = data.current.desc;
+            document.getElementById('today-high').innerText = data.current.high;
+            document.getElementById('today-low').innerText = data.current.low;
+
+            // 2. 배경 이미지 설정 (날씨 코드 기반)
+            setBackground(data.current.code);
+
+            // 3. 시간별 날씨 채우기
+            const hourlyList = document.getElementById('hourly-list');
+            hourlyList.innerHTML = ''; // 초기화
+
+            data.hourly.forEach(hour => {
+                // 강수확률 표시 (0%면 안 보여줌)
+                const popHtml = hour.pop > 0 ? `<div class="hourly-pop"><i class="fas fa-tint"></i> ${hour.pop}%</div>` : '<div class="hourly-pop" style="opacity:0;">.</div>';
+
+                const hourHtml = `
+                    <div class="hourly-item">
+                        <span class="hourly-time">${hour.time}</span>
+                        <img class="hourly-icon" src="https://openweathermap.org/img/wn/${hour.icon}@2x.png" alt="icon">
+                        <span class="hourly-temp">${hour.temp}°</span>
+                        ${popHtml}
+                    </div>
+                `;
+                hourlyList.innerHTML += hourHtml;
+            });
+        }
+
+        // 날씨 코드에 따라 고화질 배경 이미지 URL 반환 (Unsplash Source 활용)
+        function setBackground(code) {
+            let query = 'weather'; // 기본
+
+            if (code >= 200 && code < 300) query = 'thunderstorm,lightning';
+            else if (code >= 300 && code < 600) query = 'rain,rainy,umbrella';
+            else if (code >= 600 && code < 700) query = 'snow,winter,snowing';
+            else if (code >= 700 && code < 800) query = 'fog,mist,hazy';
+            else if (code === 800) query = 'clear sky,sunny nature,blue sky';
+            else if (code > 800) query = 'clouds,cloudy sky,overcast';
+            
+            // Unsplash에서 해당 검색어의 고화질 이미지를 랜덤으로 가져옴
+            const imageUrl = `https://source.unsplash.com/1600x900/?${query},nature`;
+            bgImage.style.backgroundImage = `url(${imageUrl})`;
+        }
+
+        fetchWeather();
+        // 30분마다 날씨 갱신
+        setInterval(fetchWeather, 30 * 60 * 1000);
+    </script>
+</body>
+</html>
