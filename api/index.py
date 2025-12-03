@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, render_template, make_response
 import requests
 import os
+from datetime import datetime, timedelta # <-- 이거 추가!
 
 # templates 폴더와 static 폴더 위치 지정
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
@@ -56,6 +57,63 @@ def playlist_page():
 @app.route('/mandalart')
 def mandalart_page():
     return allow_iframe(render_template('mandalart.html'))
+
+# 7. 날씨 위젯 페이지 ( /weather )
+@app.route('/weather')
+def weather_page():
+    return allow_iframe(render_template('weather.html'))
+
+# 날씨 데이터 가져오기 API
+@app.route('/api/get_weather', methods=['GET'])
+def get_weather():
+    try:
+        api_key = os.environ.get("OWM_API_KEY")
+        lat = os.environ.get("LAT")
+        lon = os.environ.get("LON")
+
+        if not api_key or not lat or not lon:
+             return jsonify({"error": "환경변수(OWM_API_KEY, LAT, LON)가 설정되지 않았습니다."}), 500
+
+        # OpenWeatherMap One Call API 호출 (현재, 일일, 시간별 데이터 모두 포함)
+        url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude=minutely,alerts&units=metric&lang=kr&appid={api_key}"
+        
+        response = requests.get(url)
+        data = response.json()
+
+        if response.status_code != 200:
+             return jsonify({"error": f"날씨 API 오류: {data.get('message')}"}), response.status_code
+
+        # 필요한 데이터만 정리해서 보내기
+        weather_data = {
+            "current": {
+                "temp": round(data["current"]["temp"]),
+                "desc": data["current"]["weather"][0]["description"],
+                "icon": data["current"]["weather"][0]["icon"],
+                "code": data["current"]["weather"][0]["id"], # 날씨 상태 코드 (배경화면용)
+                "high": round(data["daily"][0]["temp"]["max"]), # 오늘 최고
+                "low": round(data["daily"][0]["temp"]["min"])   # 오늘 최저
+            },
+            # 향후 12시간 데이터만 추림
+            "hourly": []
+        }
+
+        for i in range(1, 13): # 1시간 뒤부터 12시간 뒤까지
+            hour_data = data["hourly"][i]
+            weather_data["hourly"].append({
+                # 시간을 "오후 3시" 형태로 변환 (UTC 기준이라 9시간 더해줌 - 한국 기준)
+                # 실제 서버 시간대에 따라 다를 수 있으나 Vercel 기본 기준으로 계산
+                 "time": (datetime.utcfromtimestamp(hour_data["dt"]) + timedelta(hours=9)).strftime("%p %I시").replace("AM", "오전").replace("PM", "오후"),
+                 "temp": round(hour_data["temp"]),
+                 "icon": hour_data["weather"][0]["icon"],
+                 "pop": round(hour_data["pop"] * 100) # 강수확률 (0~1 -> 0~100%)
+            })
+            
+        return jsonify(weather_data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# (맨 아래 if __name__ == '__main__': app.run() 이부분은 그대로 유지)
 
 
 # ==========================================
@@ -164,3 +222,4 @@ def get_mandalart():
 
 if __name__ == '__main__':
     app.run()
+
