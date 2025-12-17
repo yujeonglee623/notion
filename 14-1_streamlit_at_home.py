@@ -25,9 +25,17 @@ st.markdown("""
 # 3. 시스템 로드
 @st.cache_resource
 def load_system():
+    # 1. 로컬 환경(.env)을 위해 로드 (배포 환경에선 무시됨)
     load_dotenv()
-    api_key = os.getenv('DART_API_KEY')
+    
+    # 2. API 키 찾기 (중요: Secrets 먼저 찾고 -> 없으면 os 환경변수 찾기)
+    if 'DART_API_KEY' in st.secrets:
+        api_key = st.secrets['DART_API_KEY'] # 배포된 Streamlit Cloud용
+    else:
+        api_key = os.getenv('DART_API_KEY')  # 내 컴퓨터(로컬)용
+        
     try:
+        # 모델 파일 이름이 정확한지 꼭 확인해! (Github에 이 파일이 있어야 함)
         model = joblib.load('bankruptcy_model_final_ratio.pkl')
         return api_key, model, "Success"
     except Exception as e:
@@ -244,3 +252,4 @@ if search_btn and user_input:
         cols[1].metric("영업이익률", f"{op_margin:.1f}%")
         cols[2].metric("순이익률", f"{net_margin:.1f}%")
         cols[3].metric("ROA", f"{roa:.1f}%")
+
