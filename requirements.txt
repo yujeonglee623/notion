@@ -1,2 +1,7 @@
-flask
+streamlit
+pandas
+numpy
+joblib
 requests
+python-dotenv
+scikit-learn
